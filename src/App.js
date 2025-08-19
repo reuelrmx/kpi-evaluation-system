@@ -11,6 +11,7 @@ import KPIManagement from './components/KPIManagement/KPIManagement';
 import WorkplanSubmission from './components/WorkplanSubmission/WorkplanSubmission';
 import Reports from './components/Reports/Reports';
 import Navbar from './components/Layout/Navbar';
+import LecturerKPIManagement from './components/KPIManagement/LecturerKPIManagement';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -92,7 +93,7 @@ function App() {
             path="/kpi-management/:lecturerId" 
             element={
               isAuthenticated && (user.role === 'admin' || user.role === 'supervisor') ? 
-              <KPIManagement user={user} /> : 
+              <LecturerKPIManagement user={user} /> : 
               <Navigate to="/dashboard" />
             } 
           />
@@ -115,7 +116,7 @@ function App() {
             } 
           />
           
-          <Route path="/" element={<Navigate to="/dashboard" />} />
+
         </Routes>
       </div>
     </Router>

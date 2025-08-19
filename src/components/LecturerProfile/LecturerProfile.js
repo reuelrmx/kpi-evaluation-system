@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import './LecturerProfile.css';
 
@@ -303,10 +303,12 @@ const LecturerProfile = ({ user }) => {
                 )}
                 {(user.role === 'admin' || user.role === 'supervisor') && (
                   <>
-                    <button className="action-btn">
-                      <span className="action-icon">📊</span>
-                      Assign KPI
-                    </button>
+                    <Link 
+                      to={`/kpi-management/${lecturer.id}`}
+                      className="btn btn-outline btn-sm"
+                    >
+                      Assign KPIs
+                    </Link>
                     <button className="action-btn">
                       <span className="action-icon">✅</span>
                       Evaluate Performance
