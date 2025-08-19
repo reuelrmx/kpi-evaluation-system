@@ -76,12 +76,12 @@
 .stat-content h3 {
   font-size: 2rem;
   font-weight: 700;
-  color: #11486B;
+  color: #fff;
   margin: 0 0 5px 0;
 }
 
 .stat-content p {
-  color: #666;
+  color: #6c6c6c;
   font-size: 14px;
   font-weight: 500;
   margin: 0;

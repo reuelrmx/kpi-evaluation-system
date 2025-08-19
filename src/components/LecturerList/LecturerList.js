@@ -340,9 +340,12 @@ const LecturerList = ({ user }) => {
               </Link>
               {(user.role === 'admin' || user.role === 'supervisor') && (
                 <>
-                  <button className="btn btn-outline btn-sm">
+                  <Link 
+                    to={`/kpi-management/${lecturer.id}`}
+                    className="btn btn-outline btn-sm"
+                  >
                     Assign KPIs
-                  </button>
+                  </Link>
                   <button className="btn btn-secondary btn-sm">
                     Evaluate
                   </button>

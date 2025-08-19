@@ -48,7 +48,7 @@ const Navbar = ({ user, onLogout }) => {
       <div className="navbar-container">
         <div className="navbar-brand">
           <Link to="/dashboard" className="brand-link">
-            <div className="brand-logo">CBU</div>
+            <div className="brand-logo"><img  src="https://www.cbu.ac.zm/cbu-challenge/assets/img/CBU_Logo.png" alt="school logo"></img></div>
             <div className="brand-text">
               <span className="brand-title">KPI Management</span>
               <span className="brand-subtitle">SICT</span>

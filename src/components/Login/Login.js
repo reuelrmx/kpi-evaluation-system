@@ -75,7 +75,7 @@ const Login = ({ onLogin }) => {
       <div className="login-background">
         <div className="university-logo">
           <div className="logo-placeholder">
-            <h2>CBU</h2>
+           <h2>  <img src="https://www.cbu.ac.zm/cbu-challenge/assets/img/CBU_Logo.png" alt="school logo"></img></h2>
             <p>SICT</p>
           </div>
         </div>

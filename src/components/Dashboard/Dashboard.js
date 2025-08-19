@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
 
+
 const Dashboard = ({ user }) => {
   const [stats, setStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
@@ -218,7 +219,7 @@ const Dashboard = ({ user }) => {
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon">⏳</div>
+              <div className="stat-icon">group</div>
               <div className="stat-content">
                 <h3>{stats.pendingTasks}</h3>
                 <p>Pending Tasks</p>

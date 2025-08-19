@@ -89,6 +89,15 @@ function App() {
           />
           
           <Route 
+            path="/kpi-management/:lecturerId" 
+            element={
+              isAuthenticated && (user.role === 'admin' || user.role === 'supervisor') ? 
+              <KPIManagement user={user} /> : 
+              <Navigate to="/dashboard" />
+            } 
+          />
+          
+          <Route 
             path="/workplan" 
             element={
               isAuthenticated ? 
