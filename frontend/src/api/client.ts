@@ -1,0 +1,20 @@
+import axios from "axios";
+
+// Type declaration for Vite's import.meta.env
+interface ImportMetaEnv {
+  readonly VITE_API_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+const client = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "https://localhost:5001/api"
+});
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+export default client;
