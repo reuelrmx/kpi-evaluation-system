@@ -11,6 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   gap: 60px;
   max-width: 1000px;
   width: 100%;
@@ -25,15 +26,14 @@
 
 .logo-placeholder {
   background: rgba(255, 255, 255, 0.1);
-  border: 3px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  width: 150px;
-  height: 150px;
+  width: 160px;
+  /*height: 150px;*/
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 30px;
+  margin:  10;
   backdrop-filter: blur(10px);
 }
 
@@ -56,8 +56,9 @@
   padding: 40px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 400px;
-  flex: 1;
+   max-width: 500px;
+
+  
 }
 
 .login-header {
@@ -173,10 +174,24 @@
   color: #11486B;
 }
 
+img
+{
+   
+    width: 90px;
+    border: #ccc;
+
+    margin-left:100px;
+    margin-right:100px;
+    margin-top:35px;
+    margin-bottom:20;
+   
+   
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .login-background {
-    flex-direction: column;
+   flex-direction: column;
     gap: 30px;
   }
   
@@ -210,6 +225,7 @@
   
   .login-card {
     padding: 25px 15px;
+     max-width: 400px;
   }
   
   .login-header h1 {
