@@ -68,6 +68,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement { { scheme, new List<string>() } });
 });
 
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -80,5 +81,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Seed database with roles and users
+using (var scope = app.Services.CreateScope())
+{
+    await DbSeeder.SeedRolesAndUsers(scope.ServiceProvider);
+}
 
 app.Run();

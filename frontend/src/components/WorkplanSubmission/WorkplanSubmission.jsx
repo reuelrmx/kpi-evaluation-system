@@ -222,8 +222,8 @@ const WorkplanSubmission = ({ user }) => {
                   >
                     <option value="first">First Term</option>
                     <option value="second">Second Term</option>
-                    <option value="second">Second Term</option>
-                    <option value="second">Academic Year</option>
+                    <option value="third">Third Term</option>
+                    <option value="academic">Academic Year</option>
                   </select>
                 </div>
               </div>

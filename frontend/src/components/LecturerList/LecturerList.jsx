@@ -105,7 +105,6 @@ const LecturerList = ({ user }) => {
   ];
 
   useEffect(() => {
-    // Simulate API call
     const fetchLecturers = async () => {
       setLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1000));
