@@ -15,27 +15,88 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseMySql(cfg.GetConnectionString("Default"),
         ServerVersion.AutoDetect(cfg.GetConnectionString("Default"))));
 
-// Identity
-builder.Services.AddIdentity<AppUser, IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+// Identity - Configure to NOT redirect API calls
+builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
+{
+    // Configure Identity options if needed
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
 
-// JWT Authentication
-var jwtKey = Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!);
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o =>
+// Configure Identity to NOT redirect unauthorized API requests
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context =>
     {
-        o.TokenValidationParameters = new TokenValidationParameters
+        // If this is an API request (contains /api/), return 401 instead of redirect
+        if (context.Request.Path.StartsWithSegments("/api"))
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = true,
-            ValidIssuer = cfg["Jwt:Issuer"],
-            ValidAudience = cfg["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(jwtKey)
-        };
-    });
+            context.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        }
+        
+        // For non-API requests, allow normal redirect
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+    
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        // If this is an API request, return 403 instead of redirect
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = 403;
+            return Task.CompletedTask;
+        }
+        
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+});
+
+// JWT Authentication - Set as DEFAULT scheme
+var jwtKey = Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!);
+builder.Services.AddAuthentication(options =>
+{
+    // Set JWT as the default authentication scheme
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(o =>
+{
+    o.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = true,
+        ValidIssuer = cfg["Jwt:Issuer"],
+        ValidAudience = cfg["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(jwtKey),
+        ClockSkew = TimeSpan.Zero // Optional: reduce clock skew
+    };
+    
+    // Optional: Add events for debugging
+    o.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"JWT Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("JWT Token validated successfully");
+            return Task.CompletedTask;
+        }
+    };
+});
 
 builder.Services.AddAuthorization();
 
@@ -68,7 +129,6 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement { { scheme, new List<string>() } });
 });
 
-
 var app = builder.Build();
 
 app.UseSwagger();
@@ -77,6 +137,7 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseCors("frontend");
 
+// Authentication & Authorization order is important
 app.UseAuthentication();
 app.UseAuthorization();
 
