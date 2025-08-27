@@ -1,137 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import apiService from '../../utils/api';
 import './LecturerProfile.css';
 
 const LecturerProfile = ({ user }) => {
   const { id } = useParams();
   const [lecturer, setLecturer] = useState(null);
+  const [kpiAssignments, setKpiAssignments] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [workplans, setWorkplans] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-
-  // Mock lecturer data
-  const mockLecturerData = {
-    1: {
-      id: 1,
-      name: 'Mr. Raymose Banda',
-      email: 'rbanda@cbu.ac.zm',
-      phone: '+260-97-1234567',
-      department: 'Computer Science',
-      position: 'Lecturer',
-      joinDate: '2020-03-15',
-      officeLocation: 'CS-204',
-      status: 'active',
-      bio: 'Experienced lecturer in Computer Science with expertise in software engineering and database systems.',
-      qualifications: ['MSc Computer Science - University of Zambia', 'BSc Information Technology - CBU'],
-      researchInterests: ['Software Engineering', 'Database Systems', 'Web Development'],
-      assignedKPIs: [
-        {
-          id: 1,
-          title: 'Course Delivery',
-          category: 'teaching',
-          weight: 40,
-          target: 85,
-          current: 78,
-          status: 'in_progress'
-        },
-        {
-          id: 2,
-          title: 'Research Publications',
-          category: 'research',
-          weight: 20,
-          target: 2,
-          current: 1,
-          status: 'in_progress'
-        },
-        {
-          id: 3,
-          title: 'Student Supervision',
-          category: 'service',
-          weight: 15,
-          target: 3,
-          current: 2,
-          status: 'completed'
-        },
-        {
-          id: 4,
-          title: 'Departmental Meetings',
-          category: 'service',
-          weight: 10,
-          target: 80,
-          current: 90,
-          status: 'completed'
-        }
-      ],
-      performanceHistory: [
-        { period: 'Jan 2024', score: 72 },
-        { period: 'Feb 2024', score: 75 },
-        { period: 'Mar 2024', score: 78 },
-        { period: 'Apr 2024', score: 76 },
-        { period: 'May 2024', score: 80 },
-        { period: 'Jun 2024', score: 78 }
-      ],
-      recentActivities: [
-        {
-          id: 1,
-          type: 'submission',
-          description: 'Submitted quarterly workplan',
-          date: '2024-06-15',
-          status: 'completed'
-        },
-        {
-          id: 2,
-          type: 'evaluation',
-          description: 'Performance evaluation completed',
-          date: '2024-06-10',
-          status: 'completed'
-        },
-        {
-          id: 3,
-          type: 'kpi_update',
-          description: 'Updated KPI progress',
-          date: '2024-06-05',
-          status: 'completed'
-        }
-      ]
-    }
-  };
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchLecturerData = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const lecturerData = mockLecturerData[parseInt(id)];
-      if (lecturerData) {
+      try {
+        setLoading(true);
+        setError('');
+
+        console.log('Fetching lecturer data for ID:', id);
+
+        // Fetch lecturer basic info
+        const lecturerData = await apiService.getUser(id);
+        console.log('Lecturer data received:', lecturerData);
         setLecturer(lecturerData);
+
+        // Fetch KPI assignments for this lecturer
+        try {
+          const assignments = await apiService.getKpiAssignmentsByLecturer(id);
+          console.log('KPI assignments:', assignments);
+          setKpiAssignments(Array.isArray(assignments) ? assignments : []);
+        } catch (err) {
+          console.log('No KPI assignments found:', err.message);
+          setKpiAssignments([]);
+        }
+
+        // Fetch evaluations for this lecturer
+        try {
+          const lecturerEvaluations = await apiService.getEvaluationsByLecturer(id);
+          console.log('Evaluations:', lecturerEvaluations);
+          setEvaluations(Array.isArray(lecturerEvaluations) ? lecturerEvaluations : []);
+        } catch (err) {
+          console.log('No evaluations found:', err.message);
+          setEvaluations([]);
+        }
+
+        // Fetch workplans for this lecturer
+        try {
+          const lecturerWorkplans = await apiService.getWorkplansByLecturer(id);
+          console.log('Workplans:', lecturerWorkplans);
+          setWorkplans(Array.isArray(lecturerWorkplans) ? lecturerWorkplans : []);
+        } catch (err) {
+          console.log('No workplans found:', err.message);
+          setWorkplans([]);
+        }
+
+      } catch (error) {
+        console.error('Error fetching lecturer data:', error);
+        setError('Failed to load lecturer data');
+        setLecturer(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchLecturerData();
+    if (id) {
+      fetchLecturerData();
+    }
   }, [id]);
-
-  if (loading) {
-    return (
-      <div className="lecturer-profile-container">
-        <div className="loading">Loading lecturer profile...</div>
-      </div>
-    );
-  }
-
-  if (!lecturer) {
-    return (
-      <div className="lecturer-profile-container">
-        <div className="error">Lecturer not found</div>
-      </div>
-    );
-  }
 
   const getKPIStatusBadge = (status) => {
     const statusMap = {
       completed: { label: 'Completed', class: 'badge-success' },
       in_progress: { label: 'In Progress', class: 'badge-warning' },
-      not_started: { label: 'Not Started', class: 'badge-danger' }
+      not_started: { label: 'Not Started', class: 'badge-danger' },
+      pending: { label: 'Pending', class: 'badge-info' }
     };
     
     const statusInfo = statusMap[status] || statusMap.not_started;
@@ -147,21 +92,22 @@ const LecturerProfile = ({ user }) => {
       teaching: '#11486B',
       research: '#e74c3c',
       service: '#27ae60',
-      administration: '#f39c12'
+      administration: '#f39c12',
+      academic: '#9b59b6',
+      professional: '#34495e'
     };
-    return colors[category] || '#11486B';
+    return colors[category?.toLowerCase()] || '#11486B';
   };
 
   const calculateOverallScore = () => {
-    const totalWeight = lecturer.assignedKPIs.reduce((sum, kpi) => sum + kpi.weight, 0);
-    const weightedScore = lecturer.assignedKPIs.reduce((sum, kpi) => {
-      const progress = (kpi.current / kpi.target) * 100;
-      return sum + (progress * kpi.weight / 100);
-    }, 0);
-    return Math.round((weightedScore / totalWeight) * 100);
+    if (!evaluations.length) return 0;
+    
+    const totalScore = evaluations.reduce((sum, evaluation) => sum + (evaluation.score || 0), 0);
+    return Math.round(totalScore / evaluations.length);
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -169,37 +115,122 @@ const LecturerProfile = ({ user }) => {
     });
   };
 
+  const generatePerformanceHistory = () => {
+    // Generate performance history from evaluations
+    const history = evaluations
+      .sort((a, b) => new Date(a.evaluationDate) - new Date(b.evaluationDate))
+      .map((evaluation, index) => ({
+        period: `Period ${index + 1}`,
+        score: evaluation.score || 0,
+        date: evaluation.evaluationDate
+      }));
+
+    // If no evaluations, return empty data
+    if (history.length === 0) {
+      return [
+        { period: 'No Data', score: 0 }
+      ];
+    }
+
+    return history;
+  };
+
+  const generateRecentActivities = () => {
+    const activities = [];
+
+    // Add evaluation activities
+    evaluations.forEach(evaluation => {
+      activities.push({
+        id: `eval-${evaluation.id}`,
+        type: 'evaluation',
+        description: `Performance evaluation completed - Score: ${evaluation.score}`,
+        date: evaluation.evaluationDate,
+        status: 'completed'
+      });
+    });
+
+    // Add workplan activities
+    workplans.forEach(workplan => {
+      activities.push({
+        id: `workplan-${workplan.id}`,
+        type: 'submission',
+        description: `Workplan submitted for ${workplan.academicYear}`,
+        date: workplan.submissionDate,
+        status: workplan.status || 'submitted'
+      });
+    });
+
+    // Add KPI assignment activities
+    kpiAssignments.forEach(assignment => {
+      activities.push({
+        id: `kpi-${assignment.id}`,
+        type: 'kpi_update',
+        description: `KPI assigned: ${assignment.kpi?.title || 'KPI'}`,
+        date: assignment.assignedDate,
+        status: assignment.status || 'assigned'
+      });
+    });
+
+    // Sort by date (most recent first) and return top 10
+    return activities
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 10);
+  };
+
+  if (loading) {
+    return (
+      <div className="lecturer-profile-container">
+        <div className="loading">Loading lecturer profile...</div>
+      </div>
+    );
+  }
+
+  if (error || !lecturer) {
+    return (
+      <div className="lecturer-profile-container">
+        <div className="error">
+          {error || 'Lecturer not found'}
+          <button onClick={() => window.history.back()} className="btn btn-primary">
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const performanceHistory = generatePerformanceHistory();
+  const recentActivities = generateRecentActivities();
+  const overallScore = calculateOverallScore();
+
   return (
     <div className="lecturer-profile-container">
       {/* Profile Header */}
       <div className="profile-header">
         <div className="profile-avatar">
-          {lecturer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+          {(lecturer.fullName || lecturer.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()}
         </div>
         <div className="profile-info">
-          <h1 className="lecturer-name">{lecturer.name}</h1>
-          <p className="lecturer-position">{lecturer.position}</p>
-          <p className="lecturer-department">{lecturer.department}</p>
+          <h1 className="lecturer-name">{lecturer.fullName || lecturer.name}</h1>
+          <p className="lecturer-position">Lecturer</p>
+          <p className="lecturer-department">{lecturer.department || 'Department Not Assigned'}</p>
           <div className="contact-info">
             <span className="contact-item">📧 {lecturer.email}</span>
-            <span className="contact-item">📞 {lecturer.phone}</span>
-            <span className="contact-item">🏢 {lecturer.officeLocation}</span>
+            <span className="contact-item">📞 N/A</span>
+            <span className="contact-item">🏢 N/A</span>
           </div>
         </div>
         <div className="profile-stats">
           <div className="stat-card">
-            <span className="stat-value">{calculateOverallScore()}%</span>
+            <span className="stat-value">{overallScore}%</span>
             <span className="stat-label">Overall Score</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value">{lecturer.assignedKPIs.length}</span>
+            <span className="stat-value">{kpiAssignments.length}</span>
             <span className="stat-label">Total KPIs</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value">
-              {lecturer.assignedKPIs.filter(kpi => kpi.status === 'completed').length}
-            </span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-value">{evaluations.length}</span>
+            <span className="stat-label">Evaluations</span>
           </div>
         </div>
       </div>
@@ -244,7 +275,7 @@ const LecturerProfile = ({ user }) => {
                 </div>
                 <div className="chart-container">
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={lecturer.performanceHistory}>
+                    <LineChart data={performanceHistory}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="period" />
                       <YAxis />
@@ -258,27 +289,31 @@ const LecturerProfile = ({ user }) => {
               {/* KPI Progress */}
               <div className="card kpi-summary-card">
                 <div className="card-header">
-                  <h3 className="card-title">KPI Progress Summary</h3>
+                  <h3 className="card-title">KPI Assignments</h3>
                 </div>
                 <div className="kpi-progress-list">
-                  {lecturer.assignedKPIs.map(kpi => (
-                    <div key={kpi.id} className="kpi-progress-item">
+                  {kpiAssignments.length > 0 ? kpiAssignments.map(assignment => (
+                    <div key={assignment.id} className="kpi-progress-item">
                       <div className="kpi-info">
-                        <span className="kpi-title">{kpi.title}</span>
-                        <span className="kpi-progress">{kpi.current}/{kpi.target}</span>
+                        <span className="kpi-title">{assignment.kpi?.title || 'KPI Title'}</span>
+                        <span className="kpi-progress">
+                          {assignment.kpi?.category || 'Category'}
+                        </span>
                       </div>
                       <div className="progress-bar">
                         <div 
                           className="progress-fill"
                           style={{ 
-                            width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
-                            backgroundColor: getCategoryColor(kpi.category)
+                            width: '70%', // Default progress since we don't have actual progress data
+                            backgroundColor: getCategoryColor(assignment.kpi?.category)
                           }}
                         />
                       </div>
-                      {getKPIStatusBadge(kpi.status)}
+                      {getKPIStatusBadge(assignment.status)}
                     </div>
-                  ))}
+                  )) : (
+                    <div className="no-data">No KPI assignments found</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -289,7 +324,7 @@ const LecturerProfile = ({ user }) => {
                 <h3 className="card-title">Quick Actions</h3>
               </div>
               <div className="quick-actions">
-                {user.role === 'lecturer' && user.id === lecturer.id && (
+                {user?.role === 'lecturer' && user.id === lecturer.id && (
                   <>
                     <button className="action-btn">
                       <span className="action-icon">📝</span>
@@ -301,7 +336,7 @@ const LecturerProfile = ({ user }) => {
                     </button>
                   </>
                 )}
-                {(user.role === 'admin' || user.role === 'supervisor') && (
+                {(user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'hod') && (
                   <>
                     <button className="action-btn">
                       <span className="action-icon">📊</span>
@@ -326,39 +361,37 @@ const LecturerProfile = ({ user }) => {
           <div className="kpis-content">
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">Key Performance Indicators</h3>
+                <h3 className="card-title">KPI Assignments</h3>
               </div>
               <div className="kpi-details-grid">
-                {lecturer.assignedKPIs.map(kpi => (
-                  <div key={kpi.id} className="kpi-detail-card">
+                {kpiAssignments.length > 0 ? kpiAssignments.map(assignment => (
+                  <div key={assignment.id} className="kpi-detail-card">
                     <div className="kpi-card-header">
-                      <h4 className="kpi-card-title">{kpi.title}</h4>
+                      <h4 className="kpi-card-title">{assignment.kpi?.title || 'KPI Title'}</h4>
                       <span 
                         className="category-badge"
-                        style={{ backgroundColor: getCategoryColor(kpi.category) }}
+                        style={{ backgroundColor: getCategoryColor(assignment.kpi?.category) }}
                       >
-                        {kpi.category}
+                        {assignment.kpi?.category || 'General'}
                       </span>
                     </div>
                     
                     <div className="kpi-metrics">
                       <div className="metric">
                         <span className="metric-label">Weight</span>
-                        <span className="metric-value">{kpi.weight}%</span>
+                        <span className="metric-value">{assignment.kpi?.weight || 0}%</span>
                       </div>
                       <div className="metric">
                         <span className="metric-label">Target</span>
-                        <span className="metric-value">{kpi.target}</span>
+                        <span className="metric-value">{assignment.targetValue || 'N/A'}</span>
                       </div>
                       <div className="metric">
-                        <span className="metric-label">Current</span>
-                        <span className="metric-value">{kpi.current}</span>
+                        <span className="metric-label">Assigned</span>
+                        <span className="metric-value">{formatDate(assignment.assignedDate)}</span>
                       </div>
                       <div className="metric">
-                        <span className="metric-label">Progress</span>
-                        <span className="metric-value">
-                          {Math.round((kpi.current / kpi.target) * 100)}%
-                        </span>
+                        <span className="metric-label">Due Date</span>
+                        <span className="metric-value">{formatDate(assignment.dueDate)}</span>
                       </div>
                     </div>
 
@@ -366,42 +399,51 @@ const LecturerProfile = ({ user }) => {
                       <div 
                         className="kpi-progress-fill"
                         style={{ 
-                          width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
-                          backgroundColor: getCategoryColor(kpi.category)
+                          width: '70%', // Default progress
+                          backgroundColor: getCategoryColor(assignment.kpi?.category)
                         }}
                       />
                     </div>
 
                     <div className="kpi-status">
-                      {getKPIStatusBadge(kpi.status)}
+                      {getKPIStatusBadge(assignment.status)}
                     </div>
+
+                    {assignment.kpi?.description && (
+                      <div className="kpi-description">
+                        <p>{assignment.kpi.description}</p>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )) : (
+                  <div className="no-data">No KPI assignments found for this lecturer</div>
+                )}
               </div>
             </div>
 
-            {/* Performance by Category Chart */}
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Performance by Category</h3>
+            {/* Evaluations Chart */}
+            {evaluations.length > 0 && (
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Evaluation History</h3>
+                </div>
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={evaluations.map((evaluation, index) => ({
+                      name: `Eval ${index + 1}`,
+                      score: evaluation.score || 0,
+                      date: formatDate(evaluation.evaluationDate)
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="score" fill="#11486B" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={lecturer.assignedKPIs.map(kpi => ({
-                    name: kpi.title,
-                    progress: Math.round((kpi.current / kpi.target) * 100),
-                    target: 100
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="progress" fill="#11486B" />
-                    <Bar dataKey="target" fill="#e0e0e0" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -412,7 +454,7 @@ const LecturerProfile = ({ user }) => {
                 <h3 className="card-title">Recent Activities</h3>
               </div>
               <div className="activity-timeline">
-                {lecturer.recentActivities.map(activity => (
+                {recentActivities.length > 0 ? recentActivities.map(activity => (
                   <div key={activity.id} className="activity-item">
                     <div className="activity-date">
                       {formatDate(activity.date)}
@@ -421,7 +463,7 @@ const LecturerProfile = ({ user }) => {
                       <div className="activity-icon">
                         {activity.type === 'submission' && '📤'}
                         {activity.type === 'evaluation' && '📊'}
-                        {activity.type === 'kpi_update' && '🔄'}
+                        {activity.type === 'kpi_update' && '📄'}
                       </div>
                       <div className="activity-description">
                         {activity.description}
@@ -431,7 +473,9 @@ const LecturerProfile = ({ user }) => {
                       </span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="no-data">No recent activities found</div>
+                )}
               </div>
             </div>
           </div>
@@ -447,65 +491,50 @@ const LecturerProfile = ({ user }) => {
                 <div className="profile-details">
                   <div className="detail-row">
                     <span className="detail-label">Full Name:</span>
-                    <span className="detail-value">{lecturer.name}</span>
+                    <span className="detail-value">{lecturer.fullName || lecturer.name}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-label">Email:</span>
                     <span className="detail-value">{lecturer.email}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Phone:</span>
-                    <span className="detail-value">{lecturer.phone}</span>
-                  </div>
-                  <div className="detail-row">
                     <span className="detail-label">Department:</span>
-                    <span className="detail-value">{lecturer.department}</span>
+                    <span className="detail-value">{lecturer.department || 'Not Assigned'}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Position:</span>
-                    <span className="detail-value">{lecturer.position}</span>
+                    <span className="detail-label">User ID:</span>
+                    <span className="detail-value">{lecturer.id}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Office Location:</span>
-                    <span className="detail-value">{lecturer.officeLocation}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Join Date:</span>
-                    <span className="detail-value">{formatDate(lecturer.joinDate)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="card-title">Biography</h3>
-                </div>
-                <p className="bio-text">{lecturer.bio}</p>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="card-title">Qualifications</h3>
-                </div>
-                <ul className="qualifications-list">
-                  {lecturer.qualifications.map((qualification, index) => (
-                    <li key={index} className="qualification-item">
-                      🎓 {qualification}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="card-title">Research Interests</h3>
-                </div>
-                <div className="research-interests">
-                  {lecturer.researchInterests.map((interest, index) => (
-                    <span key={index} className="interest-tag">
-                      {interest}
+                    <span className="detail-label">Roles:</span>
+                    <span className="detail-value">
+                      {lecturer.roles ? lecturer.roles.join(', ') : 'Lecturer'}
                     </span>
-                  ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Academic Summary</h3>
+                </div>
+                <div className="academic-summary">
+                  <div className="summary-item">
+                    <span className="summary-label">Total KPI Assignments:</span>
+                    <span className="summary-value">{kpiAssignments.length}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Total Evaluations:</span>
+                    <span className="summary-value">{evaluations.length}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Total Workplans:</span>
+                    <span className="summary-value">{workplans.length}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Overall Performance:</span>
+                    <span className="summary-value">{overallScore}%</span>
+                  </div>
                 </div>
               </div>
             </div>
