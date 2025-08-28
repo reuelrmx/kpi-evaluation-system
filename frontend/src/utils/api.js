@@ -238,45 +238,118 @@ class ApiService {
   async getDepartmentReport(departmentId, academicYear, semester) {
     return this.get(`/reports/department/${departmentId}?academicYear=${academicYear}&semester=${semester}`);
   }
+
+  // Enhanced KPI Assignment methods
+  async getMyKpiAssignments() {
+    return this.get('/kpiassignments/my');
+  }
+
+  async createKpiAssignment(assignmentData) {
+    return this.post('/kpiassignments', assignmentData);
+  }
+
+  async deleteKpiAssignment(id) {
+    return this.delete(`/kpiassignments/${id}`);
+  }
+
+  // Enhanced Evaluation methods
+  async getMyEvaluations() {
+    return this.get('/evaluations/my');
+  }
+
+  async createEvaluation(evaluationData) {
+    return this.post('/evaluations', evaluationData);
+  }
+
+  async getEvaluationsByDepartment(departmentId) {
+    return this.get(`/evaluations?departmentId=${departmentId}`);
+  }
+
+  // Enhanced Workplan methods
+  async getMyWorkplans() {
+    return this.get('/workplans/my');
+  }
+
+  async createWorkplan(workplanData) {
+    return this.post('/workplans', workplanData);
+  }
+
+  async getWorkplansByDepartment(departmentId) {
+    return this.get(`/workplans?departmentId=${departmentId}`);
+  }
+
+  // Department methods
+  async getDepartmentById(id) {
+    return this.get(`/departments/${id}`);
+  }
+
+  async getDepartmentHods(id) {
+    return this.get(`/departments/${id}/hods`);
+  }
+
+  async getDepartmentLecturers(id) {
+    return this.get(`/departments/${id}/lecturers`);
+  }
+
+  // Enhanced KPI methods
+  async getMyKpis() {
+    return this.get('/kpis/my');
+  }
+
+  async getAllKpis() {
+    return this.get('/kpis');
+  }
 }
 
-// Create and export a single instance
-const apiService = new ApiService();
-export default apiService;
+  // Create and export a single instance
+  const apiService = new ApiService();
+  export default apiService;
 
-// Export individual methods for convenience
-export const {
-  login,
-  register,
-  logout,
-  getLecturers,
-  getUser,
-  updateUser,
-  deleteUser,
-  getDepartments,
-  createDepartment,
-  updateDepartment,
-  deleteDepartment,
-  getKpis,
-  getKpisByDepartment,
-  createKpi,
-  updateKpi,
-  deleteKpi,
-  getKpiAssignments,
-  getKpiAssignmentsByLecturer,
-  assignKpiToLecturer,
-  removeKpiAssignment,
-  getEvaluations,
-  getEvaluationsByLecturer,
-  createEvaluation,
-  updateEvaluation,
-  getWorkplans,
-  getWorkplansByLecturer,
-  createWorkplan,
-  updateWorkplan,
-  deleteWorkplan,
-  getLecturerReport,
-  getDepartmentReport,
-  getCurrentUser,
-  getAuthToken
+  // Export individual methods for convenience
+  export const {
+    login,
+    register,
+    logout,
+    getLecturers,
+    getUser,
+    updateUser,
+    deleteUser,
+    getDepartments,
+    createDepartment,
+    updateDepartment,
+    deleteDepartment,
+    getKpis,
+    getKpisByDepartment,
+    createKpi,
+    updateKpi,
+    deleteKpi,
+    getKpiAssignments,
+    getKpiAssignmentsByLecturer,
+    assignKpiToLecturer,
+    removeKpiAssignment,
+    getEvaluations,
+    getEvaluationsByLecturer,
+    createEvaluation,
+    updateEvaluation,
+    getWorkplans,
+    getWorkplansByLecturer,
+    createWorkplan,
+    updateWorkplan,
+    deleteWorkplan,
+    getLecturerReport,
+    getDepartmentReport,
+    getCurrentUser,
+    getAuthToken,
+    getMyKpiAssignments,
+    createKpiAssignment,
+    deleteKpiAssignment,
+    getMyEvaluations,
+    getEvaluationsByDepartment,
+    getMyWorkplans,
+    getWorkplansByDepartment,
+    getDepartmentById,
+    getDepartmentHods,
+    getDepartmentLecturers,
+    getMyKpis,
+    getAllKpis
 } = apiService;

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import './App.css';
 
 // Components
-import Login from './components/Login/Login';
+import Login from './components/Login/Login.jsx';
 import Dashboard from './components/Dashboard/Dashboard';
 import LecturerList from './components/LecturerList/LecturerList';
 import LecturerProfile from './components/LecturerProfile/LecturerProfile';
@@ -18,8 +18,9 @@ function App() {
 
   useEffect(() => {
     // Check if user is already logged in
-    const savedUser = sessionStorage.getItem('user');
-    if (savedUser) {
+    const savedUser = localStorage.getItem('currentUser');
+    const token = localStorage.getItem('authToken');
+    if (savedUser && token) {
       setUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
     }
@@ -28,13 +29,14 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     setIsAuthenticated(true);
-    sessionStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('currentUser', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
   };
 
   return (
@@ -64,7 +66,7 @@ function App() {
           <Route 
             path="/lecturers" 
             element={
-              isAuthenticated && (user.role === 'admin' || user.role === 'supervisor') ? 
+              isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? 
               <LecturerList user={user} /> : 
               <Navigate to="/dashboard" />
             } 
@@ -82,7 +84,7 @@ function App() {
           <Route 
             path="/kpi-management" 
             element={
-              isAuthenticated && (user.role === 'admin' || user.role === 'supervisor') ? 
+              isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? 
               <KPIManagement user={user} /> : 
               <Navigate to="/dashboard" />
             } 

@@ -13,6 +13,20 @@ const LecturerProfile = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showEvaluateModal, setShowEvaluateModal] = useState(false);
+  const [availableKpis, setAvailableKpis] = useState([]);
+  const [assignmentForm, setAssignmentForm] = useState({
+    kpiId: '',
+    academicYear: '',
+    semester: ''
+  });
+  const [evaluationForm, setEvaluationForm] = useState({
+    kpiId: '',
+    score: '',
+    comments: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchLecturerData = async () => {
@@ -177,6 +191,99 @@ const LecturerProfile = ({ user }) => {
       .slice(0, 10);
   };
 
+  // Handle Assign KPI Modal
+  const handleOpenAssignModal = async () => {
+    try {
+      const kpis = await apiService.getAllKpis();
+      setAvailableKpis(kpis);
+      setShowAssignModal(true);
+      setAssignmentForm({
+        kpiId: '',
+        academicYear: new Date().getFullYear().toString(),
+        semester: '1'
+      });
+    } catch (error) {
+      setError('Failed to load available KPIs');
+    }
+  };
+
+  const handleAssignKPI = async (e) => {
+    e.preventDefault();
+    if (!assignmentForm.kpiId) {
+      alert('Please select a KPI');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await apiService.createKpiAssignment({
+        kpiId: parseInt(assignmentForm.kpiId),
+        userId: lecturer.id,
+        academicYear: assignmentForm.academicYear,
+        semester: assignmentForm.semester
+      });
+
+      // Refresh KPI assignments
+      const assignments = await apiService.getKpiAssignmentsByLecturer(id);
+      setKpiAssignments(Array.isArray(assignments) ? assignments : []);
+      
+      setShowAssignModal(false);
+      alert('KPI assigned successfully!');
+    } catch (error) {
+      alert('Failed to assign KPI: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle Evaluate Modal
+  const handleOpenEvaluateModal = () => {
+    if (kpiAssignments.length === 0) {
+      alert('No KPI assignments found for this lecturer');
+      return;
+    }
+    setShowEvaluateModal(true);
+    setEvaluationForm({
+      kpiId: kpiAssignments[0]?.kpi?.id || '',
+      score: '',
+      comments: ''
+    });
+  };
+
+  const handleEvaluate = async (e) => {
+    e.preventDefault();
+    if (!evaluationForm.kpiId || !evaluationForm.score) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (evaluationForm.score < 0 || evaluationForm.score > 100) {
+      alert('Score must be between 0 and 100');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await apiService.createEvaluation({
+        lecturerId: lecturer.id,
+        kpiId: parseInt(evaluationForm.kpiId),
+        score: parseFloat(evaluationForm.score),
+        comments: evaluationForm.comments
+      });
+
+      // Refresh evaluations
+      const lecturerEvaluations = await apiService.getEvaluationsByLecturer(id);
+      setEvaluations(Array.isArray(lecturerEvaluations) ? lecturerEvaluations : []);
+      
+      setShowEvaluateModal(false);
+      alert('Evaluation submitted successfully!');
+    } catch (error) {
+      alert('Failed to submit evaluation: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="lecturer-profile-container">
@@ -336,13 +443,13 @@ const LecturerProfile = ({ user }) => {
                     </button>
                   </>
                 )}
-                {(user?.role === 'admin' || user?.role === 'supervisor' || user?.role === 'hod') && (
+                {(user?.role === 'admin' || user?.role === 'hod' || user?.role === 'dean') && (
                   <>
-                    <button className="action-btn">
+                    <button className="action-btn" onClick={handleOpenAssignModal}>
                       <span className="action-icon">📊</span>
                       Assign KPI
                     </button>
-                    <button className="action-btn">
+                    <button className="action-btn" onClick={handleOpenEvaluateModal}>
                       <span className="action-icon">✅</span>
                       Evaluate Performance
                     </button>
@@ -541,6 +648,171 @@ const LecturerProfile = ({ user }) => {
           </div>
         )}
       </div>
+
+      {/* Assign KPI Modal */}
+      {showAssignModal && (
+        <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Assign KPI to {lecturer.fullName || lecturer.name}</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowAssignModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleAssignKPI} className="modal-form">
+              <div className="form-group">
+                <label htmlFor="kpi-select" className="form-label">Select KPI *</label>
+                <select
+                  id="kpi-select"
+                  value={assignmentForm.kpiId}
+                  onChange={(e) => setAssignmentForm({...assignmentForm, kpiId: e.target.value})}
+                  className="form-select"
+                  required
+                >
+                  <option value="">-- Select a KPI --</option>
+                  {availableKpis.map(kpi => (
+                    <option key={kpi.id} value={kpi.id}>
+                      {kpi.title} (Weight: {kpi.weight})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="academic-year" className="form-label">Academic Year *</label>
+                  <input
+                    type="text"
+                    id="academic-year"
+                    value={assignmentForm.academicYear}
+                    onChange={(e) => setAssignmentForm({...assignmentForm, academicYear: e.target.value})}
+                    className="form-input"
+                    placeholder="2024"
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="semester" className="form-label">Semester *</label>
+                  <select
+                    id="semester"
+                    value={assignmentForm.semester}
+                    onChange={(e) => setAssignmentForm({...assignmentForm, semester: e.target.value})}
+                    className="form-select"
+                    required
+                  >
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAssignModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Assigning...' : 'Assign KPI'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Evaluate Performance Modal */}
+      {showEvaluateModal && (
+        <div className="modal-overlay" onClick={() => setShowEvaluateModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Evaluate {lecturer.fullName || lecturer.name}</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowEvaluateModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleEvaluate} className="modal-form">
+              <div className="form-group">
+                <label htmlFor="eval-kpi-select" className="form-label">Select KPI to Evaluate *</label>
+                <select
+                  id="eval-kpi-select"
+                  value={evaluationForm.kpiId}
+                  onChange={(e) => setEvaluationForm({...evaluationForm, kpiId: e.target.value})}
+                  className="form-select"
+                  required
+                >
+                  <option value="">-- Select a KPI --</option>
+                  {kpiAssignments.map(assignment => (
+                    <option key={assignment.kpi?.id} value={assignment.kpi?.id}>
+                      {assignment.kpi?.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="score" className="form-label">Score (0-100) *</label>
+                <input
+                  type="number"
+                  id="score"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={evaluationForm.score}
+                  onChange={(e) => setEvaluationForm({...evaluationForm, score: e.target.value})}
+                  className="form-input"
+                  placeholder="Enter score between 0-100"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="comments" className="form-label">Comments</label>
+                <textarea
+                  id="comments"
+                  value={evaluationForm.comments}
+                  onChange={(e) => setEvaluationForm({...evaluationForm, comments: e.target.value})}
+                  className="form-textarea"
+                  rows="4"
+                  placeholder="Enter evaluation comments (optional)"
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setShowEvaluateModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Evaluation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
