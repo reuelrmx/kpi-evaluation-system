@@ -70,27 +70,6 @@ public static class DbSeeder
             }
         }
 
-        // Create test lecturer
-        string lecturerEmail = "lecturer@cbu.ac.zm";
-        string lecturerPassword = "test1234";
-
-        if (await userManager.FindByEmailAsync(lecturerEmail) == null)
-        {
-            var lecturerUser = new AppUser
-            {
-                UserName = lecturerEmail,
-                Email = lecturerEmail,
-                FullName = "Test Lecturer",
-                EmailConfirmed = true
-            };
-
-            var result = await userManager.CreateAsync(lecturerUser, lecturerPassword);
-            if (result.Succeeded)
-            {
-                await userManager.AddToRoleAsync(lecturerUser, "Lecturer");
-            }
-        }
-        
         // Create sample HODs and additional users
         await SeedSampleUsers(context, userManager);
     }

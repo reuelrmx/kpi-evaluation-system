@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import apiService from '../../utils/api';
 import './WorkplanSubmission.css';
 
 const WorkplanSubmission = ({ user }) => {
   const [workplan, setWorkplan] = useState({
-    academicYear: '2024/2025',
-    semester: 'first',
+    periodStart: '',
+    periodEnd: '',
+    content: ''
+  });
+  
+  const [detailedWorkplan, setDetailedWorkplan] = useState({
     teachingActivities: '',
     researchActivities: '',
     serviceActivities: '',
@@ -18,6 +23,7 @@ const WorkplanSubmission = ({ user }) => {
   const [submittedWorkplans, setSubmittedWorkplans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
+  const [submitToSuperior, setSubmitToSuperior] = useState(false);
 
   // Mock KPIs assigned to the lecturer
   const mockAssignedKPIs = [
@@ -80,51 +86,90 @@ const WorkplanSubmission = ({ user }) => {
   ];
 
   useEffect(() => {
-    setAssignedKPIs(mockAssignedKPIs);
-    setSubmittedWorkplans(mockSubmittedWorkplans);
+    loadData();
   }, []);
+  
+  const loadData = async () => {
+    try {
+      const [kpis, workplans] = await Promise.all([
+        apiService.getMyKpiAssignments(),
+        apiService.getMyWorkplans()
+      ]);
+      setAssignedKPIs(kpis);
+      setSubmittedWorkplans(workplans);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setWorkplan(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (['periodStart', 'periodEnd'].includes(name)) {
+      setWorkplan(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setDetailedWorkplan(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Combine detailed workplan into content string
+      const content = JSON.stringify(detailedWorkplan);
+      
+      const workplanData = {
+        ...workplan,
+        content,
+        submitToSuperior: submitToSuperior && user.role === 'dean'
+      };
 
-    // Add to submitted workplans
-    const newSubmission = {
-      id: Date.now(),
-      ...workplan,
-      submissionDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      feedback: null
-    };
+      let result;
+      if (submitToSuperior && user.role === 'dean') {
+        result = await apiService.submitWorkplanToSuperior(workplanData);
+      } else {
+        result = await apiService.createWorkplan(workplanData);
+      }
 
-    setSubmittedWorkplans(prev => [newSubmission, ...prev]);
-
-    // Reset form
-    setWorkplan({
-      academicYear: '2024/2025',
-      semester: 'first',
-      teachingActivities: '',
-      researchActivities: '',
-      serviceActivities: '',
-      administrativeActivities: '',
-      professionalDevelopment: '',
-      objectives: '',
-      expectedOutcomes: ''
-    });
-
-    setLoading(false);
-    alert('Workplan submitted successfully!');
+      // Reset form
+      setWorkplan({
+        periodStart: '',
+        periodEnd: '',
+        content: ''
+      });
+      
+      setDetailedWorkplan({
+        teachingActivities: '',
+        researchActivities: '',
+        serviceActivities: '',
+        administrativeActivities: '',
+        professionalDevelopment: '',
+        objectives: '',
+        expectedOutcomes: ''
+      });
+      
+      setSubmitToSuperior(false);
+      
+      // Reload data
+      await loadData();
+      
+      const message = submitToSuperior && user.role === 'dean' 
+        ? 'Workplan submitted to Administrator successfully!' 
+        : 'Workplan saved successfully!';
+      alert(message);
+    } catch (error) {
+      console.error('Error submitting workplan:', error);
+      alert('Error submitting workplan: ' + (error.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -199,41 +244,57 @@ const WorkplanSubmission = ({ user }) => {
             <form onSubmit={handleSubmit}>
               <div className="form-grid basic-info">
                 <div className="form-group">
-                  <label className="form-label">Academic Year</label>
-                  <select
-                    name="academicYear"
-                    value={workplan.academicYear}
+                  <label className="form-label">Period Start Date</label>
+                  <input
+                    type="date"
+                    name="periodStart"
+                    value={workplan.periodStart}
                     onChange={handleInputChange}
-                    className="form-select"
+                    className="form-input"
                     required
-                  >
-                    <option value="2024/2025">2024/2025</option>
-                  </select>
+                  />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Period</label>
-                  <select
-                    name="semester"
-                    value={workplan.semester}
+                  <label className="form-label">Period End Date</label>
+                  <input
+                    type="date"
+                    name="periodEnd"
+                    value={workplan.periodEnd}
                     onChange={handleInputChange}
-                    className="form-select"
+                    className="form-input"
                     required
-                  >
-                    <option value="first">First Term</option>
-                    <option value="second">Second Term</option>
-                    <option value="third">Third Term</option>
-                    <option value="academic">Academic Year</option>
-                  </select>
+                  />
                 </div>
               </div>
+              
+              {user && (user.role === 'dean' || user.role === 'hod') && (
+                <div className="form-group submission-options">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={submitToSuperior}
+                      onChange={(e) => setSubmitToSuperior(e.target.checked)}
+                    />
+                    <span className="checkmark"></span>
+                    {user.role === 'dean' ? 'Submit to Administrator for review' : 'Submit to Dean for review'}
+                  </label>
+                  {submitToSuperior && (
+                    <p className="form-help-text">
+                      {user.role === 'dean' 
+                        ? 'This workplan will be submitted to the Administrator for approval.'
+                        : 'This workplan will be submitted to the Dean for approval.'}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="activities-section">
                 <div className="form-group">
                   <label className="form-label">Teaching Activities</label>
                   <textarea
                     name="teachingActivities"
-                    value={workplan.teachingActivities}
+                    value={detailedWorkplan.teachingActivities}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="4"
@@ -246,7 +307,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Research Activities</label>
                   <textarea
                     name="researchActivities"
-                    value={workplan.researchActivities}
+                    value={detailedWorkplan.researchActivities}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="4"
@@ -259,7 +320,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Service Activities</label>
                   <textarea
                     name="serviceActivities"
-                    value={workplan.serviceActivities}
+                    value={detailedWorkplan.serviceActivities}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="4"
@@ -272,7 +333,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Administrative Activities</label>
                   <textarea
                     name="administrativeActivities"
-                    value={workplan.administrativeActivities}
+                    value={detailedWorkplan.administrativeActivities}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="3"
@@ -284,7 +345,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Professional Development</label>
                   <textarea
                     name="professionalDevelopment"
-                    value={workplan.professionalDevelopment}
+                    value={detailedWorkplan.professionalDevelopment}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="3"
@@ -297,7 +358,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Key Objectives</label>
                   <textarea
                     name="objectives"
-                    value={workplan.objectives}
+                    value={detailedWorkplan.objectives}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="4"
@@ -310,7 +371,7 @@ const WorkplanSubmission = ({ user }) => {
                   <label className="form-label">Expected Outcomes</label>
                   <textarea
                     name="expectedOutcomes"
-                    value={workplan.expectedOutcomes}
+                    value={detailedWorkplan.expectedOutcomes}
                     onChange={handleInputChange}
                     className="form-textarea"
                     rows="4"
@@ -334,8 +395,11 @@ const WorkplanSubmission = ({ user }) => {
                   onClick={() => {
                     if (window.confirm('Are you sure you want to clear all fields?')) {
                       setWorkplan({
-                        academicYear: '2024/2025',
-                        semester: 'first',
+                        periodStart: '',
+                        periodEnd: '',
+                        content: ''
+                      });
+                      setDetailedWorkplan({
                         teachingActivities: '',
                         researchActivities: '',
                         serviceActivities: '',
@@ -344,6 +408,7 @@ const WorkplanSubmission = ({ user }) => {
                         objectives: '',
                         expectedOutcomes: ''
                       });
+                      setSubmitToSuperior(false);
                     }
                   }}
                 >

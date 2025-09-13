@@ -31,6 +31,8 @@ public class WorkplansController : ControllerBase
                 return BadRequest(ModelState);
                 
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUser = await _userManager.FindByIdAsync(currentUserId);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
 
             // Validate period dates
             if (dto.PeriodEnd <= dto.PeriodStart)
@@ -38,12 +40,39 @@ public class WorkplansController : ControllerBase
                 return BadRequest(new { message = "Period end date must be after start date" });
             }
 
+            // Determine who to submit to based on role hierarchy
+            string? submittedToId = null;
+            if (dto.SubmitToSuperior)
+            {
+                if (currentUserRoles.Contains("Dean"))
+                {
+                    // Dean submits to Admin
+                    var admin = await _userManager.GetUsersInRoleAsync("Admin");
+                    submittedToId = admin.FirstOrDefault()?.Id;
+                }
+                else if (currentUserRoles.Contains("HOD"))
+                {
+                    // HOD submits to Dean
+                    var dean = await _userManager.GetUsersInRoleAsync("Dean");
+                    submittedToId = dean.FirstOrDefault()?.Id;
+                }
+                else if (currentUserRoles.Contains("Lecturer"))
+                {
+                    // Lecturer submits to HOD of their department
+                    var hods = await _userManager.GetUsersInRoleAsync("HOD");
+                    var departmentHod = hods.FirstOrDefault(h => h.DepartmentId == currentUser.DepartmentId);
+                    submittedToId = departmentHod?.Id;
+                }
+            }
+
             var workplan = new Workplan
             {
                 LecturerId = currentUserId,
                 PeriodStart = dto.PeriodStart,
                 PeriodEnd = dto.PeriodEnd,
-                Content = dto.Content
+                Content = dto.Content,
+                SubmittedToId = submittedToId,
+                Status = submittedToId != null ? "Submitted" : "Draft"
             };
 
             _db.Workplans.Add(workplan);
@@ -53,6 +82,7 @@ public class WorkplansController : ControllerBase
             var result = await _db.Workplans
                 .Include(w => w.Lecturer)
                 .ThenInclude(l => l.Department)
+                .Include(w => w.SubmittedTo)
                 .FirstOrDefaultAsync(w => w.Id == workplan.Id);
 
             return Ok(result);
@@ -77,7 +107,24 @@ public class WorkplansController : ControllerBase
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             var workplans = await _db.Workplans
+                .Include(w => w.SubmittedTo)
                 .Where(w => w.LecturerId == currentUserId)
+                .OrderByDescending(w => w.SubmittedAt)
+                .ToListAsync();
+
+            return Ok(workplans);
+        }
+        
+        [HttpGet("submitted-to-me")]
+        [Authorize(Roles = "Admin,Dean,HOD")]
+        public async Task<IActionResult> GetWorkplansSubmittedToMe()
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            var workplans = await _db.Workplans
+                .Include(w => w.Lecturer)
+                .ThenInclude(l => l.Department)
+                .Where(w => w.SubmittedToId == currentUserId)
                 .OrderByDescending(w => w.SubmittedAt)
                 .ToListAsync();
 
@@ -172,6 +219,8 @@ public class CreateWorkplanDto
     [Required]
     [StringLength(5000, MinimumLength = 10)]
     public string Content { get; set; } = "";
+    
+    public bool SubmitToSuperior { get; set; } = false;
 }
 
 public class UpdateWorkplanDto

@@ -299,6 +299,24 @@ class ApiService {
   async getAllKpis() {
     return this.get('/kpis');
   }
+  
+  // Dean-specific methods
+  async getAssignableUsers() {
+    return this.get('/kpiassignments/assignable-users');
+  }
+  
+  async getWorkplansSubmittedToMe() {
+    return this.get('/workplans/submitted-to-me');
+  }
+  
+  async submitWorkplanToSuperior(workplanData) {
+    return this.post('/workplans', { ...workplanData, submitToSuperior: true });
+  }
+  
+  // Dashboard data method - missing from current implementation
+  async getDashboard() {
+    return this.get('/reports/dashboard');
+  }
 }
 
   // Create and export a single instance

@@ -17,19 +17,27 @@ const Navbar = ({ user, onLogout }) => {
       { path: '/dashboard', label: 'Dashboard', icon: '📊' }
     ];
 
-    if (user.role === 'admin' || user.role === 'supervisor') {
+    // Admin, Dean, and HOD can see lecturer management
+    if (user.role === 'admin' || user.role === 'dean' || user.role === 'hod') {
       baseItems.push(
         { path: '/lecturers', label: 'Lecturers', icon: '👥' },
         { path: '/kpi-management', label: 'KPI Management', icon: '📈' }
       );
     }
-
-    if (user.role === 'lecturer') {
+    
+    // Dean-specific navigation
+    if (user.role === 'dean') {
       baseItems.push(
-        { path: '/workplan', label: 'My Workplan', icon: '📝' }
+        { path: '/assign-kpis', label: 'Assign KPIs', icon: '🎯' }
       );
     }
 
+    // Everyone can access their workplan
+    baseItems.push(
+      { path: '/workplan', label: 'My Workplan', icon: '📝' }
+    );
+
+    // Everyone can see reports
     baseItems.push(
       { path: '/reports', label: 'Reports', icon: '📄' }
     );

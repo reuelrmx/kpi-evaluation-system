@@ -125,6 +125,54 @@ public class ReportsController : ControllerBase
         return Ok(new { OverallStats = overallStats, KpiPerformance = kpiPerformance, RecentEvaluations = evaluations.Take(10) });
     }
 
+    [HttpGet("dashboard")]
+    [Authorize]
+    public async Task<IActionResult> GetDashboard()
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUser = await _userManager.FindByIdAsync(currentUserId);
+        var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
+
+        var lecturerCount = await _userManager.GetUsersInRoleAsync("Lecturer").ContinueWith(task => task.Result.Count);
+        var kpiCount = await _db.Kpis.CountAsync();
+        var evaluationCount = await _db.Evaluations.CountAsync();
+        var avgScore = await _db.Evaluations.AverageAsync(e => (double?)e.Score) ?? 0;
+
+        // Get recent evaluations for activity feed
+        var recentEvaluations = await _db.Evaluations
+            .Include(e => e.Lecturer)
+            .OrderByDescending(e => e.EvaluatedAt)
+            .Take(10)
+            .Select(e => new {
+                e.LecturerId,
+                e.Score,
+                Date = e.EvaluatedAt.ToString("yyyy-MM-dd")
+            })
+            .ToListAsync();
+
+        // Mock performance data for now
+        var performanceData = new[]
+        {
+            new { Month = "Jan", Score = 75 },
+            new { Month = "Feb", Score = 82 },
+            new { Month = "Mar", Score = 78 },
+            new { Month = "Apr", Score = 85 },
+            new { Month = "May", Score = 90 },
+            new { Month = "Jun", Score = 88 }
+        };
+
+        return Ok(new
+        {
+            LecturerCount = lecturerCount,
+            KpiCount = kpiCount,
+            EvaluationCount = evaluationCount,
+            Pending = 0, // Calculate pending evaluations if needed
+            AvgScore = avgScore,
+            Performance = performanceData,
+            RecentEvaluations = recentEvaluations
+        });
+    }
+    
     [HttpGet("overview")]
     [Authorize(Roles = "Dean,Admin")]
     public async Task<IActionResult> GetSystemOverview()
