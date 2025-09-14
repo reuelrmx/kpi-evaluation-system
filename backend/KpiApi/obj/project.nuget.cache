@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "80ggC1m/dr8=",
+  "dgSpecHash": "nbowt9ZWhDI=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Administrator\\Desktop\\PROJECT\\kpi-evaluation-system\\backend\\KpiApi\\KpiApi.csproj",
+  "projectFilePath": "C:\\Users\\Administrator\\Documents\\GitHub\\kpi-evaluation-system\\backend\\KpiApi\\KpiApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Administrator\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\8.0.8\\microsoft.aspnetcore.authentication.jwtbearer.8.0.8.nupkg.sha512",
