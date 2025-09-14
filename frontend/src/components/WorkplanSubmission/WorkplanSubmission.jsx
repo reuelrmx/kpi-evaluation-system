@@ -25,66 +25,6 @@ const WorkplanSubmission = ({ user }) => {
   const [activeTab, setActiveTab] = useState('create');
   const [submitToSuperior, setSubmitToSuperior] = useState(false);
 
-  // Mock KPIs assigned to the lecturer
-  const mockAssignedKPIs = [
-    {
-      id: 1,
-      title: 'Course Delivery',
-      description: 'Deliver assigned courses effectively',
-      category: 'teaching',
-      weight: 40,
-      targetValue: 85,
-      unit: 'percentage'
-    },
-    {
-      id: 2,
-      title: 'Research Publications',
-      description: 'Publish research papers in peer-reviewed journals',
-      category: 'research',
-      weight: 20,
-      targetValue: 2,
-      unit: 'papers'
-    },
-    {
-      id: 3,
-      title: 'Student Supervision',
-      description: 'Supervise undergraduate and postgraduate students',
-      category: 'service',
-      weight: 15,
-      targetValue: 3,
-      unit: 'students'
-    },
-    {
-      id: 4,
-      title: 'Departmental Meetings',
-      description: 'Participate in departmental meetings and activities',
-      category: 'service',
-      weight: 10,
-      targetValue: 80,
-      unit: 'percentage'
-    }
-  ];
-
-  // Mock submitted workplans
-  const mockSubmittedWorkplans = [
-    {
-      id: 1,
-      academicYear: '2023/2024',
-      semester: 'second',
-      submissionDate: '2024-02-15',
-      status: 'approved',
-      feedback: 'Well structured workplan with clear objectives.'
-    },
-    {
-      id: 2,
-      academicYear: '2023/2024',
-      semester: 'first',
-      submissionDate: '2023-09-10',
-      status: 'approved',
-      feedback: 'Good alignment with departmental goals.'
-    }
-  ];
-
   useEffect(() => {
     loadData();
   }, []);
