@@ -8,6 +8,8 @@ import Dashboard from './components/AdminDashboard/Dashboard';
 import KPIManagement from './components/AdminDashboard/KPIManagement';
 import UserList from './components/AdminDashboard/UserList';
 import DepartmentList from './components/AdminDashboard/DepartmentList';
+import HODWorkplanReview from './components/HODDashboard/HODWorkplanReview';
+
 
 import Navbar from './components/Layout/Navbar';
 
@@ -65,6 +67,15 @@ function App() {
               <Navigate to="/login" />
             } 
           />
+
+          <Route 
+            path="/hod/review-workplans" 
+            element={
+              isAuthenticated && user.role === 'hod' ? 
+              <HODWorkplanReview user={user} /> : 
+              <Navigate to="/dashboard" />
+  } 
+/>
           
           <Route 
             path="/lecturers" 
