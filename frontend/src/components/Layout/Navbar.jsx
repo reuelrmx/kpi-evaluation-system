@@ -17,30 +17,33 @@ const Navbar = ({ user, onLogout }) => {
       { path: '/dashboard', label: 'Dashboard', icon: '📊' }
     ];
 
-    // Admin, Dean, and HOD can see lecturer management
-    if (user.role === 'admin' || user.role === 'dean' || user.role === 'hod') {
+    if (user.role === 'admin') {
       baseItems.push(
+        { path: '/users', label: 'Users', icon: '🧑‍💼' },
+        { path: '/departments', label: 'Departments', icon: '🏢' },
+        { path: '/kpi-management', label: 'KPI Management', icon: '📈' }
+      );
+    } else if (user.role === 'hod' || user.role === 'dean') {
+      baseItems.push(
+        { path: '/users', label: 'Users', icon: '🧑‍💼' },
+        { path: '/departments', label: 'Departments', icon: '🏢' },
+        { path: '/evaluations', label: 'Evaluations', icon: '✅' },
         { path: '/lecturers', label: 'Lecturers', icon: '👥' },
         { path: '/kpi-management', label: 'KPI Management', icon: '📈' }
       );
     }
-    
-    // Dean-specific navigation
-    if (user.role === 'dean') {
+
+    if (user.role === 'lecturer') {
       baseItems.push(
-        { path: '/assign-kpis', label: 'Assign KPIs', icon: '🎯' }
+        { path: '/workplan', label: 'My Workplan', icon: '📝' }
       );
     }
 
-    // Everyone can access their workplan
-    baseItems.push(
-      { path: '/workplan', label: 'My Workplan', icon: '📝' }
-    );
-
-    // Everyone can see reports
-    baseItems.push(
-      { path: '/reports', label: 'Reports', icon: '📄' }
-    );
+    if (user.role !== 'admin') {
+      baseItems.push(
+        { path: '/reports', label: 'Reports', icon: '📄' }
+      );
+    }
 
     return baseItems;
   };

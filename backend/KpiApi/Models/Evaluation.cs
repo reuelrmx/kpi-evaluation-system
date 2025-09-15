@@ -1,19 +1,38 @@
-namespace KpiApi.Models;
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-public class Evaluation
+namespace KpiApi.Models
 {
-    public int Id { get; set; }
+    public class Evaluation
+    {
+        [Key]
+        public int Id { get; set; }
 
-    public string LecturerId { get; set; } = "";
-    public AppUser? Lecturer { get; set; }
+        [Required]
+        public string LecturerId { get; set; } = "";
+        public AppUser? Lecturer { get; set; }
 
-    public string HodId { get; set; } = "";
-    public AppUser? Hod { get; set; }
+        public string? HodId { get; set; }
+        public AppUser? Hod { get; set; }
 
-    public int KpiId { get; set; }
-    public Kpi? Kpi { get; set; }
+        [Required]
+        public int KpiId { get; set; }
+        public Kpi? Kpi { get; set; }
 
-    public decimal Score { get; set; } // 0..100
-    public string? Comments { get; set; }
-    public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;
+        [Range(0, 100)]
+        public decimal Score { get; set; }
+
+        [StringLength(1000)]
+        public string? Comments { get; set; }
+
+        // ---------- NEW properties to fix CS0117 ----------
+        // Status (e.g. "Pending", "Completed")
+        [Required]
+        [StringLength(50)]
+        public string Status { get; set; } = "Pending";
+
+        // When evaluation was done/updated
+        public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;
+    }
 }

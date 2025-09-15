@@ -4,14 +4,17 @@ import './App.css';
 
 // Components
 import Login from './components/Login/Login.jsx';
-import Dashboard from './components/Dashboard/Dashboard';
+import Dashboard from './components/AdminDashboard/Dashboard';
+import KPIManagement from './components/AdminDashboard/KPIManagement';
+import UserList from './components/AdminDashboard/UserList';
+import DepartmentList from './components/AdminDashboard/DepartmentList';
 
-import LecturerList from './components/LecturerList/LecturerList';
-import LecturerProfile from './components/LecturerProfile/LecturerProfile';
-import KPIManagement from './components/KPIManagement/KPIManagement';
-import WorkplanSubmission from './components/WorkplanSubmission/WorkplanSubmission';
-import Reports from './components/Reports/Reports';
 import Navbar from './components/Layout/Navbar';
+
+import LecturerList from './components/HODDashboard/LecturerList';
+import LecturerProfile from './components/HODDashboard/LecturerProfile';
+import WorkplanSubmission from './components/HODDashboard/WorkplanSubmission';
+// import Reports from './components/Reports/Reports'; // Uncomment and modularize if needed
 
 function App() {
   const [user, setUser] = useState(null);
@@ -43,8 +46,7 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
-        
+    {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
         <Routes>
           <Route 
             path="/login" 
@@ -100,6 +102,7 @@ function App() {
             } 
           />
           
+          {/*
           <Route 
             path="/reports" 
             element={
@@ -108,7 +111,11 @@ function App() {
               <Navigate to="/login" />
             } 
           />
+          */}
           
+          <Route path="/users" element={isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? <UserList user={user} /> : <Navigate to="/dashboard" />} />
+          <Route path="/departments" element={isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? <DepartmentList /> : <Navigate to="/dashboard" />} />
+
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </div>

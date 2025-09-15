@@ -32,12 +32,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .HasIndex(d => d.Name)
             .IsUnique();
 
-        // Configure KPI relationships
-        builder.Entity<Kpi>()
-            .HasOne(k => k.Department)
-            .WithMany()
-            .HasForeignKey(k => k.DepartmentId)
-            .OnDelete(DeleteBehavior.Cascade);
+
 
         builder.Entity<Kpi>()
             .HasOne(k => k.CreatedByHod)
@@ -96,12 +91,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany()
             .HasForeignKey(w => w.LecturerId)
             .OnDelete(DeleteBehavior.Cascade);
-            
-        builder.Entity<Workplan>()
-            .HasOne(w => w.SubmittedTo)
-            .WithMany()
-            .HasForeignKey(w => w.SubmittedToId)
-            .OnDelete(DeleteBehavior.SetNull);
 
         // Add indexes for better performance
         builder.Entity<KpiAssignment>()

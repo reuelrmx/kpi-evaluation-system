@@ -24,22 +24,12 @@ public class KpisController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? departmentId = null)
+    public async Task<IActionResult> GetAll()
     {
-        var query = _db.Kpis
-            .Include(k => k.Department)
+        var kpis = await _db.Kpis
             .Include(k => k.CreatedByHod)
-            .AsQueryable();
-
-        if (departmentId.HasValue)
-        {
-            query = query.Where(k => k.DepartmentId == departmentId);
-        }
-
-        var kpis = await query
             .OrderBy(k => k.Title)
             .ToListAsync();
-
         return Ok(kpis);
     }
 
@@ -47,57 +37,38 @@ public class KpisController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var kpi = await _db.Kpis
-            .Include(k => k.Department)
             .Include(k => k.CreatedByHod)
             .FirstOrDefaultAsync(k => k.Id == id);
-
         if (kpi == null)
             return NotFound();
-
         return Ok(kpi);
     }
 
-    [HttpGet("department/{departmentId}")]
-    public async Task<IActionResult> GetByDepartment(int departmentId)
-    {
-        var kpis = await _db.Kpis
-            .Include(k => k.Department)
-            .Include(k => k.CreatedByHod)
-            .Where(k => k.DepartmentId == departmentId)
-            .OrderBy(k => k.Title)
-            .ToListAsync();
 
-        return Ok(kpis);
-    }
 
     [HttpGet("my")]
     public async Task<IActionResult> GetMyKpis()
     {
         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId))
+            return Unauthorized();
+
         var currentUser = await _userManager.FindByIdAsync(currentUserId);
+        if (currentUser == null)
+            return Unauthorized();
+
         var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
 
         IQueryable<Kpi> query = _db.Kpis
-            .Include(k => k.Department)
             .Include(k => k.CreatedByHod);
-
-        // HODs can see KPIs in their department
-        if (currentUserRoles.Contains("HOD"))
+        if (!currentUserRoles.Contains("Admin") && !currentUserRoles.Contains("Dean"))
         {
-            query = query.Where(k => k.DepartmentId == currentUser.DepartmentId);
-        }
-        // Deans can see all KPIs
-        else if (!currentUserRoles.Contains("Admin") && !currentUserRoles.Contains("Dean"))
-        {
-            // For lecturers, show KPIs assigned to them
             var assignedKpiIds = await _db.KpiAssignments
                 .Where(a => a.LecturerId == currentUserId)
                 .Select(a => a.KpiId)
                 .ToListAsync();
-
             query = query.Where(k => assignedKpiIds.Contains(k.Id));
         }
-
         var kpis = await query.OrderBy(k => k.Title).ToListAsync();
         return Ok(kpis);
     }
@@ -110,30 +81,27 @@ public class KpisController : ControllerBase
             return BadRequest(ModelState);
 
         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var currentUser = await _userManager.FindByIdAsync(currentUserId);
-        var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
+        if (string.IsNullOrEmpty(currentUserId))
+            return Unauthorized();
 
-        // Verify department access
-        if (currentUserRoles.Contains("HOD") && dto.DepartmentId != currentUser.DepartmentId)
-        {
-            return Forbid("You can only create KPIs for your department");
-        }
+        var currentUser = await _userManager.FindByIdAsync(currentUserId);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
 
         var kpi = new Kpi
         {
             Title = dto.Title,
             Description = dto.Description,
             Weight = dto.Weight,
-            DepartmentId = dto.DepartmentId,
             CreatedByHodId = currentUserId
         };
 
         _db.Kpis.Add(kpi);
         await _db.SaveChangesAsync();
 
-        // Return KPI with related data
         var result = await _db.Kpis
-            .Include(k => k.Department)
             .Include(k => k.CreatedByHod)
             .FirstOrDefaultAsync(k => k.Id == kpi.Id);
 
@@ -152,16 +120,19 @@ public class KpisController : ControllerBase
             return NotFound();
 
         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId))
+            return Unauthorized();
+
         var currentUser = await _userManager.FindByIdAsync(currentUserId);
+        if (currentUser == null)
+            return Unauthorized();
+
         var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
 
-        // Verify permissions
-        if (currentUserRoles.Contains("HOD"))
+        // HODs can only update KPIs they created
+        if (currentUserRoles.Contains("HOD") && kpi.CreatedByHodId != currentUserId)
         {
-            if (kpi.DepartmentId != currentUser.DepartmentId || kpi.CreatedByHodId != currentUserId)
-            {
-                return Forbid("You can only update KPIs you created in your department");
-            }
+            return Forbid("You can only update KPIs you created");
         }
 
         kpi.Title = dto.Title;
@@ -171,7 +142,6 @@ public class KpisController : ControllerBase
         await _db.SaveChangesAsync();
 
         var result = await _db.Kpis
-            .Include(k => k.Department)
             .Include(k => k.CreatedByHod)
             .FirstOrDefaultAsync(k => k.Id == id);
 
@@ -187,19 +157,21 @@ public class KpisController : ControllerBase
             return NotFound();
 
         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId))
+            return Unauthorized();
+
         var currentUser = await _userManager.FindByIdAsync(currentUserId);
+        if (currentUser == null)
+            return Unauthorized();
+
         var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
 
-        // Verify permissions
-        if (currentUserRoles.Contains("HOD"))
+        // HODs can only delete KPIs they created
+        if (currentUserRoles.Contains("HOD") && kpi.CreatedByHodId != currentUserId)
         {
-            if (kpi.DepartmentId != currentUser.DepartmentId || kpi.CreatedByHodId != currentUserId)
-            {
-                return Forbid("You can only delete KPIs you created in your department");
-            }
+            return Forbid("You can only delete KPIs you created");
         }
 
-        // Check if KPI has assignments
         var hasAssignments = await _db.KpiAssignments.AnyAsync(a => a.KpiId == id);
         if (hasAssignments)
         {
@@ -214,6 +186,7 @@ public class KpisController : ControllerBase
 }
 
 // DTOs
+
 public class CreateKpiDto
 {
     [Required]
@@ -226,9 +199,6 @@ public class CreateKpiDto
     [Required]
     [Range(0.01, 1.0, ErrorMessage = "Weight must be between 0.01 and 1.0")]
     public decimal Weight { get; set; }
-
-    [Required]
-    public int? DepartmentId { get; set; }
 }
 
 public class UpdateKpiDto

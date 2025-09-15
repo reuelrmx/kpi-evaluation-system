@@ -4,221 +4,130 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace KpiApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "HOD,Dean,Admin")]
+[Authorize]
 public class ReportsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly UserManager<AppUser> _userManager;
-    
+
     public ReportsController(AppDbContext db, UserManager<AppUser> userManager)
     {
         _db = db;
         _userManager = userManager;
     }
 
-    [HttpGet("department/{departmentId}")]
-    public async Task<IActionResult> GetDepartmentReport(int departmentId, [FromQuery] string? academicYear = null, [FromQuery] string? semester = null)
+    [HttpGet("system")]
+    [Authorize(Roles = "Admin,Dean")]
+    public async Task<IActionResult> GetSystemReport()
     {
-        var department = await _db.Departments.FindAsync(departmentId);
-        if (department == null)
-            return NotFound();
+        var totalUsers = await _db.Users.CountAsync();
+        var totalDepartments = await _db.Departments.CountAsync();
+        var totalKpis = await _db.Kpis.CountAsync();
+        var totalEvaluations = await _db.Evaluations.CountAsync();
+        var totalWorkplans = await _db.Workplans.CountAsync();
 
-        var evaluationsQuery = _db.Evaluations
-            .Include(e => e.Lecturer)
-            .Include(e => e.Kpi)
-            .Where(e => e.Lecturer.DepartmentId == departmentId);
+        var avgScore = await _db.Evaluations.AnyAsync()
+            ? await _db.Evaluations.AverageAsync(e => e.Score)
+            : 0;
 
-        if (!string.IsNullOrEmpty(academicYear))
+        return Ok(new
         {
-            var assignments = _db.KpiAssignments.Where(a => a.AcademicYear == academicYear);
-            if (!string.IsNullOrEmpty(semester))
+            TotalUsers = totalUsers,
+            TotalDepartments = totalDepartments,
+            TotalKpis = totalKpis,
+            TotalEvaluations = totalEvaluations,
+            TotalWorkplans = totalWorkplans,
+            AvgScore = avgScore
+        });
+    }
+
+    [HttpGet("department/{departmentId}")]
+    [Authorize(Roles = "Admin,Dean,HOD")]
+    public async Task<IActionResult> GetDepartmentReport(int departmentId)
+    {
+        var department = await _db.Departments
+            .Include(d => d.Users)
+            .FirstOrDefaultAsync(d => d.Id == departmentId);
+
+        if (department == null)
+            return NotFound("Department not found");
+
+        var lecturers = new List<object>();
+        foreach (var user in department.Users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Contains("Lecturer"))
             {
-                assignments = assignments.Where(a => a.Semester == semester);
+                var evaluations = await _db.Evaluations
+                    .Where(e => e.LecturerId == user.Id)
+                    .ToListAsync();
+
+                lecturers.Add(new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    AvgScore = evaluations.Any() ? evaluations.Average(e => e.Score) : 0,
+                    Evaluations = evaluations
+                });
             }
-            var assignmentIds = await assignments.Select(a => a.Id).ToListAsync();
-            // Filter evaluations based on KPI assignments for the period
         }
 
-        var evaluations = await evaluationsQuery.ToListAsync();
+        var deptEvaluations = await _db.Evaluations
+            .Where(e => e.Lecturer.DepartmentId == departmentId)
+            .ToListAsync();
 
-        var lecturerSummary = evaluations
-            .GroupBy(e => e.LecturerId)
-            .Select(g => new
-            {
-                LecturerId = g.Key,
-                LecturerName = g.First().Lecturer.FullName,
-                LecturerEmail = g.First().Lecturer.Email,
-                AvgScore = g.Average(x => x.Score),
-                EvaluationCount = g.Count(),
-                LastEvaluated = g.Max(x => x.EvaluatedAt)
-            })
-            .OrderByDescending(x => x.AvgScore)
-            .ToList();
+        // Department-specific KPIs removed; KPIs are now global
+        var deptKpis = new List<Kpi>();
 
-        var overallStats = new
+        return Ok(new
         {
-            DepartmentName = department.Name,
-            TotalEvaluations = evaluations.Count,
-            AverageScore = evaluations.Any() ? evaluations.Average(e => e.Score) : 0,
-            LecturerCount = lecturerSummary.Count,
-            TopPerformer = lecturerSummary.FirstOrDefault(),
-            Period = new { AcademicYear = academicYear, Semester = semester }
-        };
-
-        return Ok(new { OverallStats = overallStats, LecturerSummary = lecturerSummary });
+            department.Id,
+            department.Name,
+            LecturerCount = lecturers.Count,
+            AvgDeptScore = deptEvaluations.Any() ? deptEvaluations.Average(e => e.Score) : 0,
+            KpiCount = deptKpis.Count,
+            Lecturers = lecturers
+        });
     }
 
     [HttpGet("lecturer/{lecturerId}")]
-    public async Task<IActionResult> GetLecturerReport(string lecturerId, [FromQuery] string? academicYear = null, [FromQuery] string? semester = null)
+    [Authorize(Roles = "Admin,Dean,HOD,Lecturer")]
+    public async Task<IActionResult> GetLecturerReport(string lecturerId)
     {
-        var lecturer = await _userManager.FindByIdAsync(lecturerId);
+        var lecturer = await _db.Users
+            .Include(u => u.Department)
+            .FirstOrDefaultAsync(u => u.Id == lecturerId);
+
         if (lecturer == null)
-            return NotFound();
+            return NotFound("Lecturer not found");
 
-        var evaluationsQuery = _db.Evaluations
+        var evaluations = await _db.Evaluations
             .Include(e => e.Kpi)
-            .ThenInclude(k => k.Department)
             .Include(e => e.Hod)
-            .Where(e => e.LecturerId == lecturerId);
-
-        var evaluations = await evaluationsQuery
+            .Where(e => e.LecturerId == lecturerId)
             .OrderByDescending(e => e.EvaluatedAt)
             .ToListAsync();
 
-        var kpiPerformance = evaluations
-            .GroupBy(e => e.KpiId)
-            .Select(g => new
-            {
-                KpiId = g.Key,
-                KpiTitle = g.First().Kpi.Title,
-                KpiWeight = g.First().Kpi.Weight,
-                LatestScore = g.OrderByDescending(x => x.EvaluatedAt).First().Score,
-                AverageScore = g.Average(x => x.Score),
-                EvaluationCount = g.Count(),
-                LastEvaluated = g.Max(x => x.EvaluatedAt)
-            })
-            .ToList();
-
-        var workplansSubmitted = await _db.Workplans
+        var workplans = await _db.Workplans
             .Where(w => w.LecturerId == lecturerId)
-            .CountAsync();
-
-        var overallStats = new
-        {
-            LecturerName = lecturer.FullName,
-            LecturerEmail = lecturer.Email,
-            DepartmentId = lecturer.DepartmentId,
-            TotalEvaluations = evaluations.Count,
-            OverallAverage = evaluations.Any() ? evaluations.Average(e => e.Score) : 0,
-            WeightedAverage = kpiPerformance.Any() ? 
-                kpiPerformance.Sum(k => k.LatestScore * k.KpiWeight) / kpiPerformance.Sum(k => k.KpiWeight) : 0,
-            WorkplansSubmitted = workplansSubmitted,
-            LastEvaluated = evaluations.Any() ? evaluations.Max(e => e.EvaluatedAt) : (DateTime?)null
-        };
-
-        return Ok(new { OverallStats = overallStats, KpiPerformance = kpiPerformance, RecentEvaluations = evaluations.Take(10) });
-    }
-
-    [HttpGet("dashboard")]
-    [Authorize]
-    public async Task<IActionResult> GetDashboard()
-    {
-        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var currentUser = await _userManager.FindByIdAsync(currentUserId);
-        var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
-
-        var lecturerCount = await _userManager.GetUsersInRoleAsync("Lecturer").ContinueWith(task => task.Result.Count);
-        var kpiCount = await _db.Kpis.CountAsync();
-        var evaluationCount = await _db.Evaluations.CountAsync();
-        var avgScore = await _db.Evaluations.AverageAsync(e => (double?)e.Score) ?? 0;
-
-        // Get recent evaluations for activity feed
-        var recentEvaluations = await _db.Evaluations
-            .Include(e => e.Lecturer)
-            .OrderByDescending(e => e.EvaluatedAt)
-            .Take(10)
-            .Select(e => new {
-                e.LecturerId,
-                e.Score,
-                Date = e.EvaluatedAt.ToString("yyyy-MM-dd")
-            })
+            .OrderByDescending(w => w.SubmittedAt)
             .ToListAsync();
 
-        // Mock performance data for now
-        var performanceData = new[]
-        {
-            new { Month = "Jan", Score = 75 },
-            new { Month = "Feb", Score = 82 },
-            new { Month = "Mar", Score = 78 },
-            new { Month = "Apr", Score = 85 },
-            new { Month = "May", Score = 90 },
-            new { Month = "Jun", Score = 88 }
-        };
-
         return Ok(new
         {
-            LecturerCount = lecturerCount,
-            KpiCount = kpiCount,
-            EvaluationCount = evaluationCount,
-            Pending = 0, // Calculate pending evaluations if needed
-            AvgScore = avgScore,
-            Performance = performanceData,
-            RecentEvaluations = recentEvaluations
-        });
-    }
-    
-    [HttpGet("overview")]
-    [Authorize(Roles = "Dean,Admin")]
-    public async Task<IActionResult> GetSystemOverview()
-    {
-        var departments = await _db.Departments.Include(d => d.Users).ToListAsync();
-        var totalEvaluations = await _db.Evaluations.CountAsync();
-        var totalWorkplans = await _db.Workplans.CountAsync();
-        var totalKpis = await _db.Kpis.CountAsync();
-
-        var departmentStats = new List<object>();
-        
-        foreach (var dept in departments)
-        {
-            var deptEvaluations = await _db.Evaluations
-                .Include(e => e.Lecturer)
-                .Where(e => e.Lecturer.DepartmentId == dept.Id)
-                .ToListAsync();
-
-            var lecturerCount = 0;
-            var hodCount = 0;
-            
-            foreach (var user in dept.Users)
-            {
-                var roles = await _userManager.GetRolesAsync(user);
-                if (roles.Contains("Lecturer")) lecturerCount++;
-                if (roles.Contains("HOD")) hodCount++;
-            }
-
-            departmentStats.Add(new
-            {
-                dept.Id,
-                dept.Name,
-                LecturerCount = lecturerCount,
-                HodCount = hodCount,
-                EvaluationCount = deptEvaluations.Count,
-                AverageScore = deptEvaluations.Any() ? deptEvaluations.Average(e => e.Score) : 0
-            });
-        }
-
-        return Ok(new
-        {
-            TotalDepartments = departments.Count,
-            TotalEvaluations = totalEvaluations,
-            TotalWorkplans = totalWorkplans,
-            TotalKpis = totalKpis,
-            DepartmentStats = departmentStats
+            lecturer.Id,
+            lecturer.FullName,
+            lecturer.Email,
+            Department = lecturer.Department?.Name,
+            AvgScore = evaluations.Any() ? evaluations.Average(e => e.Score) : 0,
+            Evaluations = evaluations,
+            Workplans = workplans
         });
     }
 }

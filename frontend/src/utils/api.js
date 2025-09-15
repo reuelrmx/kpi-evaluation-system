@@ -120,7 +120,12 @@ class ApiService {
     window.location.href = '/login';
   }
 
+
   // User methods
+  async getAllUsers() {
+    return this.get('/users');
+  }
+
   async getLecturers() {
     return this.get('/users/lecturers');
   }
@@ -135,6 +140,12 @@ class ApiService {
 
   async deleteUser(id) {
     return this.delete(`/users/${id}`);
+  }
+
+  // Roles (stub, update if backend provides roles endpoint)
+  async getAllRoles() {
+    // If you have a backend endpoint for roles, use it here. Otherwise, return static roles.
+    return ['Admin', 'HOD', 'Dean', 'Lecturer'];
   }
 
   // Department methods
@@ -298,24 +309,6 @@ class ApiService {
 
   async getAllKpis() {
     return this.get('/kpis');
-  }
-  
-  // Dean-specific methods
-  async getAssignableUsers() {
-    return this.get('/kpiassignments/assignable-users');
-  }
-  
-  async getWorkplansSubmittedToMe() {
-    return this.get('/workplans/submitted-to-me');
-  }
-  
-  async submitWorkplanToSuperior(workplanData) {
-    return this.post('/workplans', { ...workplanData, submitToSuperior: true });
-  }
-  
-  // Dashboard data method - missing from current implementation
-  async getDashboard() {
-    return this.get('/reports/dashboard');
   }
 }
 

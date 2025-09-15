@@ -85,7 +85,6 @@ public class KpiAssignmentsController : ControllerBase
         // Return assignment with KPI details
         var result = await _db.KpiAssignments
             .Include(a => a.Kpi)
-            .ThenInclude(k => k.Department)
             .Include(a => a.Lecturer)
             .FirstOrDefaultAsync(a => a.Id == assignment.Id);
 
@@ -97,7 +96,6 @@ public class KpiAssignmentsController : ControllerBase
     {
         var assignments = await _db.KpiAssignments
             .Include(a => a.Kpi)
-            .ThenInclude(k => k.Department)
             .Include(a => a.Lecturer)
             .Where(a => a.LecturerId == lecturerId)
             .OrderBy(a => a.AcademicYear)
@@ -115,50 +113,12 @@ public class KpiAssignmentsController : ControllerBase
         
         var assignments = await _db.KpiAssignments
             .Include(a => a.Kpi)
-            .ThenInclude(k => k.Department)
             .Where(a => a.LecturerId == currentUserId)
             .OrderBy(a => a.AcademicYear)
             .ThenBy(a => a.Semester)
             .ToListAsync();
 
         return Ok(assignments);
-    }
-    
-    [HttpGet("assignable-users")]
-    [Authorize(Roles = "Admin,Dean,HOD")]
-    public async Task<IActionResult> GetAssignableUsers()
-    {
-        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var currentUser = await _userManager.FindByIdAsync(currentUserId);
-        var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
-
-        var users = new List<object>();
-        
-        if (currentUserRoles.Contains("Dean"))
-        {
-            // Dean can assign KPIs to all HODs
-            var hods = await _userManager.GetUsersInRoleAsync("HOD");
-            users.AddRange(hods.Select(h => new { h.Id, h.FullName, h.Email, Role = "HOD", h.DepartmentId }));
-        }
-        else if (currentUserRoles.Contains("HOD"))
-        {
-            // HOD can assign KPIs to lecturers in their department
-            var lecturers = await _userManager.GetUsersInRoleAsync("Lecturer");
-            var departmentLecturers = lecturers.Where(l => l.DepartmentId == currentUser.DepartmentId);
-            users.AddRange(departmentLecturers.Select(l => new { l.Id, l.FullName, l.Email, Role = "Lecturer", l.DepartmentId }));
-        }
-        else if (currentUserRoles.Contains("Admin"))
-        {
-            // Admin can assign to anyone
-            var allUsers = await _userManager.Users.ToListAsync();
-            foreach (var user in allUsers)
-            {
-                var userRoles = await _userManager.GetRolesAsync(user);
-                users.Add(new { user.Id, user.FullName, user.Email, Role = userRoles.FirstOrDefault(), user.DepartmentId });
-            }
-        }
-
-        return Ok(users);
     }
 
     [HttpGet]
@@ -167,7 +127,6 @@ public class KpiAssignmentsController : ControllerBase
     {
         var query = _db.KpiAssignments
             .Include(a => a.Kpi)
-            .ThenInclude(k => k.Department)
             .Include(a => a.Lecturer)
             .ThenInclude(l => l.Department)
             .AsQueryable();

@@ -239,13 +239,16 @@ const LecturerList = ({ user }) => {
 
     setSubmitting(true);
     try {
-      await apiService.createEvaluation({
+      const res = await apiService.createEvaluation({
         lecturerId: selectedLecturer.id,
         kpiId: parseInt(evaluationForm.kpiId),
         score: parseFloat(evaluationForm.score),
         comments: evaluationForm.comments
       });
-      
+      if (!res || typeof res !== 'object') {
+        alert('Failed to submit evaluation: The server did not return a valid response.');
+        return;
+      }
       setShowEvaluateModal(false);
       alert('Evaluation submitted successfully!');
       setSelectedLecturer(null);

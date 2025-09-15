@@ -6,8 +6,6 @@ public class Kpi
     public string Title { get; set; } = "";
     public string? Description { get; set; }
     public decimal Weight { get; set; } // 0..1 or percentage
-    public int? DepartmentId { get; set; }
-    public Department? Department { get; set; }
     public string CreatedByHodId { get; set; } = "";
     public AppUser? CreatedByHod { get; set; }
 }

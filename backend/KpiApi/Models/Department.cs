@@ -1,8 +1,16 @@
-namespace KpiApi.Models;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
-public class Department
+namespace KpiApi.Models
 {
-    public int Id { get; set; }
-    public string Name { get; set; } = "";
-    public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
+    public class Department
+    {
+        public int Id { get; set; }
+
+        [Required]
+        public string Name { get; set; } = "";
+
+        // Initialize collection to avoid null dereference warnings (CS8602)
+        public ICollection<AppUser> Users { get; set; } = new HashSet<AppUser>();
+    }
 }

@@ -1,309 +1,464 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  LineChart,
-  Line,
-  ResponsiveContainer,
-} from "recharts";
-import "./Dashboard.css";
-import apiService from "../../utils/api";
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import dashboardApi from '../../api/dashboard';
+import './Dashboard.css';
 
-// 🔹 Format backend response into the same shape as mock data
-const formatDashboardData = (backendData) => {
-  return {
-    stats: {
-      totalLecturers: backendData.lecturerCount,
-      totalKPIs: backendData.kpiCount,
-      completedEvaluations: backendData.evaluationCount,
-      pendingEvaluations: backendData.pending || 0,
-      averageScore: backendData.avgScore || 0,
-    },
-    performanceData: backendData.performance
-      ? backendData.performance.map((p) => ({
-          name: p.month,
-          score: p.score,
-        }))
-      : [],
-    recentActivity: backendData.recentEvaluations
-      ? backendData.recentEvaluations.map((ev, i) => ({
-          id: i + 1,
-          action: `Lecturer #${ev.lecturerId} scored ${ev.score}`,
-          time: ev.date,
-          type: "complete",
-        }))
-      : [],
-  };
-};
-
-export default function Dashboard({ user }) {
+const Dashboard = ({ user }) => {
   const [stats, setStats] = useState({});
-  const [performanceData, setPerformanceData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
-  const [myKpiAssignments, setMyKpiAssignments] = useState([]);
-  const [workplansSubmittedToMe, setWorkplansSubmittedToMe] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
+  const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const COLORS = ['#11486B', '#1a5a7a', '#4a90a4', '#7bb3c7', '#a8d0e6'];
 
   useEffect(() => {
-    async function fetchData() {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        // Fetch general dashboard data
-        const data = await apiService.getDashboard();
-        const formatted = formatDashboardData(data);
-        setStats(formatted.stats);
-        setPerformanceData(formatted.performanceData);
-        setRecentActivity(formatted.recentActivity);
-        
-        // Fetch Dean-specific data if user is Dean
-        if (user && user.role === 'dean') {
-          const assignments = await apiService.getMyKpiAssignments();
-          setMyKpiAssignments(assignments);
-          
-          const workplans = await apiService.getWorkplansSubmittedToMe();
-          setWorkplansSubmittedToMe(workplans);
-        }
+        // Fetch all dashboard data in parallel
+        const [statsRes, activityRes, perfRes, deptRes] = await Promise.all([
+          dashboardApi.getDashboardStats(),
+          dashboardApi.getRecentActivity(),
+          dashboardApi.getPerformanceData(),
+          dashboardApi.getDepartmentData(),
+        ]);
+
+        setStats(statsRes || {});
+        setRecentActivity(activityRes || []);
+        setPerformanceData(perfRes || []);
+        setDepartmentData(deptRes || []);
       } catch (err) {
-        console.error("Error fetching dashboard:", err);
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data. Please try again.');
+        setStats({});
+        setPerformanceData([]);
+        setRecentActivity([]);
+        setDepartmentData([]);
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchData();
+    };
+    fetchDashboardData();
   }, [user]);
 
+
   const getActivityIcon = (type) => {
-    switch (type) {
-      case "create":
-        return "➕";
-      case "complete":
-        return "✅";
-      case "submit":
-        return "📤";
-      case "update":
-        return "🔄";
-      case "assign":
-        return "📋";
-      case "approve":
-        return "👍";
-      default:
-        return "📄";
-    }
+    const icons = {
+      create: '➕',
+      complete: '✅',
+      submit: '📤',
+      report: '📊',
+      assign: '📋',
+      achievement: '🏆',
+      update: '🔄'
+    };
+    return icons[type] || '📄';
   };
 
-  if (loading) {
-    return <div className="p-6">Loading dashboard...</div>;
-  }
-
-  return (
-    <div className="dashboard-container p-6">
-      {/* Header */}
-      <div className="dashboard-header mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Welcome back!</h1>
-          <p className="text-gray-600">
-            Here’s your performance overview and recent activity.
-          </p>
+  // Render functions for each role (keep the same as before)
+  const renderAdminDashboard = () => (
+    <>
+      <div className="dashboard-header">
+        <div className="welcome-section">
+          <h1>Welcome back, {user.name}!</h1>
+          <p>System Administrator Dashboard</p>
         </div>
-        <div className="text-gray-500">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
+        <div className="current-date">
+          {new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
           })}
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="stats-grid grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="stat-card bg-white p-4 rounded-xl shadow">
-          <div className="text-2xl">👥</div>
-          <h3 className="text-lg font-bold">{stats.totalLecturers}</h3>
-          <p>Total Lecturers</p>
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">👥</div>
+          <div className="stat-content">
+            <h3>{stats.totalUsers || 0}</h3>
+            <p>Total Users</p>
+          </div>
+          <Link to="/users" className="stat-link">Manage →</Link>
         </div>
-        <div className="stat-card bg-white p-4 rounded-xl shadow">
-          <div className="text-2xl">📊</div>
-          <h3 className="text-lg font-bold">{stats.totalKPIs}</h3>
-          <p>Total KPIs</p>
+
+        <div className="stat-card">
+          <div className="stat-icon">📊</div>
+          <div className="stat-content">
+            <h3>{stats.totalLecturers || 0}</h3>
+            <p>Lecturers</p>
+          </div>
+          <Link to="/lecturers" className="stat-link">View →</Link>
         </div>
-        <div className="stat-card bg-white p-4 rounded-xl shadow">
-          <div className="text-2xl">✅</div>
-          <h3 className="text-lg font-bold">{stats.completedEvaluations}</h3>
-          <p>Completed</p>
+
+        <div className="stat-card">
+          <div className="stat-icon">🏢</div>
+          <div className="stat-content">
+            <h3>{stats.totalDepartments || 0}</h3>
+            <p>Departments</p>
+          </div>
+          <Link to="/departments" className="stat-link">Manage →</Link>
         </div>
-        <div className="stat-card bg-white p-4 rounded-xl shadow">
-          <div className="text-2xl">⏳</div>
-          <h3 className="text-lg font-bold">{stats.pendingEvaluations}</h3>
-          <p>Pending</p>
+
+        <div className="stat-card">
+          <div className="stat-icon">✅</div>
+          <div className="stat-content">
+            <h3>{stats.completedEvaluations || 0}</h3>
+            <p>Completed Evals</p>
+          </div>
+          <Link to="/evaluations" className="stat-link">Review →</Link>
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="dashboard-content grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Performance Chart */}
-        <div className="card bg-white p-4 rounded-xl shadow">
-          <h2 className="text-xl font-bold mb-4">Performance Trends</h2>
+      <div className="dashboard-content">
+        <div className="content-column">
+          <div className="card">
+            <h3>Performance by Category</h3>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#11486B" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        <div className="content-column">
+          <div className="card">
+            <h3>Department Overview</h3>
+            <div className="department-stats">
+              {departmentData.map((dept, index) => (
+                <div key={index} className="department-item">
+                  <h4>{dept.name}</h4>
+                  <div className="dept-metrics">
+                    <span>{dept.lecturers} Lecturers</span>
+                    <span className="score">{dept.avgScore}% Avg</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderDeanDashboard = () => (
+    <>
+      <div className="dashboard-header">
+        <div className="welcome-section">
+          <h1>Welcome, Dean {user.name}!</h1>
+          <p>Faculty Overview Dashboard</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.totalDepartments || 0}</h3>
+            <p>Departments</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.totalLecturers || 0}</h3>
+            <p>Faculty Members</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.completedEvaluations || 0}</h3>
+            <p>Completed Evaluations</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.pendingApprovals || 0}</h3>
+            <p>Pending Reviews</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Department Performance</h3>
+        <div className="performance-list">
+          {departmentData.map((dept, index) => (
+            <div key={index} className="performance-item">
+              <span className="dept-name">{dept.name}</span>
+              <span className="dept-score">{dept.avgScore}%</span>
+              <span className="dept-count">{dept.lecturers} staff</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Dean cannot manage users, departments, or KPIs. No management links here. */}
+    </>
+  );
+
+  const renderHODDashboard = () => (
+    <>
+      <div className="dashboard-header">
+        <div className="welcome-section">
+          <h1>Welcome, HOD {user.name}!</h1>
+          <p>Department Management Dashboard</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.assignedLecturers || 0}</h3>
+            <p>Team Members</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.totalKPIs || 0}</h3>
+            <p>Active KPIs</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.completedEvaluations || 0}</h3>
+            <p>Completed Evals</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.pendingReview || 0}</h3>
+            <p>Pending Review</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Team Performance</h3>
+        <div className="chart-container">
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={performanceData}>
+            <BarChart data={performanceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#11486B"
-                strokeWidth={3}
-              />
-            </LineChart>
+              <Bar dataKey="score" fill="#11486B" name="Score" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+    </>
+  );
 
-        {/* Recent Activity */}
-        <div className="card bg-white p-4 rounded-xl shadow">
-          <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
-          <div className="activity-list space-y-2">
-            {recentActivity.length === 0 ? (
-              <p>No recent activity</p>
-            ) : (
-              recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="activity-item flex items-center space-x-3 border-b pb-2"
-                >
-                  <div className="activity-icon text-xl">
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div>
-                    <p>{activity.action}</p>
-                    <span className="text-sm text-gray-500">
-                      {activity.time}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
+  const renderLecturerDashboard = () => (
+    <>
+      <div className="dashboard-header">
+        <div className="welcome-section">
+          <h1>Welcome, {user.name}!</h1>
+          <p>My Performance Dashboard</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.assignedKPIs || 0}</h3>
+            <p>Assigned KPIs</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.completedTasks || 0}</h3>
+            <p>Completed Tasks</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.currentScore || 0}</h3>
+            <p>Current Score</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-content">
+            <h3>{stats.submissionRate || '0%'}</h3>
+            <p>Submission Rate</p>
           </div>
         </div>
       </div>
-      
-      {/* Dean-specific sections */}
-      {user && user.role === 'dean' && (
-        <>
-          {/* My KPI Assignments */}
-          <div className="card bg-white p-4 rounded-xl shadow mb-6">
-            <h2 className="text-xl font-bold mb-4">📋 My KPI Assignments</h2>
-            <div className="overflow-x-auto">
-              {myKpiAssignments.length === 0 ? (
-                <p className="text-gray-500">No KPI assignments found</p>
-              ) : (
-                <table className="min-w-full table-auto">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-4">KPI Title</th>
-                      <th className="text-left py-2 px-4">Description</th>
-                      <th className="text-left py-2 px-4">Weight</th>
-                      <th className="text-left py-2 px-4">Academic Year</th>
-                      <th className="text-left py-2 px-4">Semester</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myKpiAssignments.map((assignment) => (
-                      <tr key={assignment.id} className="border-b hover:bg-gray-50">
-                        <td className="py-2 px-4">{assignment.kpi?.title}</td>
-                        <td className="py-2 px-4">{assignment.kpi?.description}</td>
-                        <td className="py-2 px-4">{(assignment.kpi?.weight * 100).toFixed(1)}%</td>
-                        <td className="py-2 px-4">{assignment.academicYear}</td>
-                        <td className="py-2 px-4">{assignment.semester}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-          
-          {/* Workplans Submitted to Me */}
-          <div className="card bg-white p-4 rounded-xl shadow mb-6">
-            <h2 className="text-xl font-bold mb-4">📤 Workplans Submitted to Me</h2>
-            <div className="overflow-x-auto">
-              {workplansSubmittedToMe.length === 0 ? (
-                <p className="text-gray-500">No workplans submitted to you</p>
-              ) : (
-                <table className="min-w-full table-auto">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-4">From</th>
-                      <th className="text-left py-2 px-4">Period</th>
-                      <th className="text-left py-2 px-4">Status</th>
-                      <th className="text-left py-2 px-4">Submitted At</th>
-                      <th className="text-left py-2 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workplansSubmittedToMe.map((workplan) => (
-                      <tr key={workplan.id} className="border-b hover:bg-gray-50">
-                        <td className="py-2 px-4">{workplan.lecturer?.fullName}</td>
-                        <td className="py-2 px-4">
-                          {new Date(workplan.periodStart).toLocaleDateString()} - {new Date(workplan.periodEnd).toLocaleDateString()}
-                        </td>
-                        <td className="py-2 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            workplan.status === 'Submitted' ? 'bg-yellow-100 text-yellow-800' :
-                            workplan.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                            workplan.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {workplan.status}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4">{new Date(workplan.submittedAt).toLocaleDateString()}</td>
-                        <td className="py-2 px-4">
-                          <button className="text-blue-600 hover:text-blue-800 mr-2">Review</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
-      {/* Quick Actions */}
-      <div className="card bg-white p-4 rounded-xl shadow">
-        <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="quick-actions flex flex-wrap gap-4">
-          {user && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') && (
-            <Link to="/lecturers" className="action-btn px-4 py-2 bg-blue-600 text-white rounded-lg shadow">
-              👥 Manage Lecturers
+      <div className="card">
+        <h3>My Performance Breakdown</h3>
+        <div className="chart-container">
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={performanceData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value }) => `${name}: ${value}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {performanceData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderQuickActions = () => (
+    <div className="card">
+      <div className="card-header">
+        <h2 className="card-title">Quick Actions</h2>
+      </div>
+      <div className="quick-actions-grid">
+        {user.roles?.includes('Admin') && (
+          <>
+            <Link to="/users/create" className="action-btn">
+              <span className="action-icon">➕</span>
+              <span>Add User</span>
             </Link>
-          )}
-          {user && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') && (
-            <Link to="/kpi-management" className="action-btn px-4 py-2 bg-green-600 text-white rounded-lg shadow">
-              📊 Manage KPIs
+            <Link to="/kpi-management" className="action-btn">
+              <span className="action-icon">📊</span>
+              <span>Manage KPIs</span>
             </Link>
-          )}
-          {user && user.role === 'dean' && (
-            <Link to="/assign-kpis" className="action-btn px-4 py-2 bg-indigo-600 text-white rounded-lg shadow">
-              🎯 Assign KPIs to HODs
+            <Link to="/departments" className="action-btn">
+              <span className="action-icon">🏢</span>
+              <span>Departments</span>
             </Link>
-          )}
-          <Link to="/workplan" className="action-btn px-4 py-2 bg-yellow-600 text-white rounded-lg shadow">
-            📝 {user && user.role === 'dean' ? 'Submit Workplan to Admin' : 'My Workplan'}
-          </Link>
-          <Link to="/reports" className="action-btn px-4 py-2 bg-purple-600 text-white rounded-lg shadow">
-            📄 Generate Report
-          </Link>
+          </>
+        )}
+        {/* Dean cannot manage users, departments, or KPIs. Only see reports/policies. */}
+        {user.roles?.includes('Dean') && (
+          <>
+            <Link to="/faculty-reports" className="action-btn">
+              <span className="action-icon">📄</span>
+              <span>Reports</span>
+            </Link>
+            <Link to="/policy-review" className="action-btn">
+              <span className="action-icon">📋</span>
+              <span>Policies</span>
+            </Link>
+          </>
+        )}
+        {user.roles?.includes('HOD') && (
+          <>
+            <Link to="/team-management" className="action-btn">
+              <span className="action-icon">👥</span>
+              <span>My Team</span>
+            </Link>
+            <Link to="/kpi-assignment" className="action-btn">
+              <span className="action-icon">📋</span>
+              <span>Assign KPIs</span>
+            </Link>
+            <Link to="/evaluation-review" className="action-btn">
+              <span className="action-icon">✅</span>
+              <span>Review Evals</span>
+            </Link>
+          </>
+        )}
+        {user.roles?.includes('Lecturer') && (
+          <>
+            <Link to="/workplan" className="action-btn">
+              <span className="action-icon">📝</span>
+              <span>Workplan</span>
+            </Link>
+            <Link to="/my-kpis" className="action-btn">
+              <span className="action-icon">📊</span>
+              <span>My KPIs</span>
+            </Link>
+            <Link to="/submissions" className="action-btn">
+              <span className="action-icon">📤</span>
+              <span>Submissions</span>
+            </Link>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRecentActivity = () => (
+    <div className="card activity-card">
+      <div className="card-header">
+        <h2 className="card-title">Recent Activity</h2>
+      </div>
+      <div className="activity-list">
+        {recentActivity.length > 0 ? (
+          recentActivity.map(activity => (
+            <div key={activity.id} className="activity-item">
+              <div className="activity-icon">{getActivityIcon(activity.type)}</div>
+              <div className="activity-content">
+                <p className="activity-action">{activity.action}</p>
+                <span className="activity-time">{activity.time}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="no-data">
+            <p>No recent activity</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          Loading dashboard data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-container">
+        <div className="error-message">
+          <h3>⚠️ Dashboard Error</h3>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} className="btn btn-primary">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-container">
+      {user.roles?.includes('Admin') && renderAdminDashboard()}
+      {user.roles?.includes('Dean') && renderDeanDashboard()}
+      {user.roles?.includes('HOD') && renderHODDashboard()}
+      {user.roles?.includes('Lecturer') && renderLecturerDashboard()}
+      
+      <div className="dashboard-content">
+        <div className="content-column">
+          {renderQuickActions()}
+        </div>
+        <div className="content-column">
+          {renderRecentActivity()}
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;
