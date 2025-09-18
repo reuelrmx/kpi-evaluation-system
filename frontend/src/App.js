@@ -4,32 +4,66 @@ import './App.css';
 
 // Components
 import Login from './components/Login/Login.jsx';
-import Dashboard from './components/AdminDashboard/Dashboard';
+import AdminDashboard from './components/AdminDashboard/Dashboard';
+import HODDashboard from './components/HODDashboard/Dashboard';
+import DeanDashboard from './components/DeanDashboard/Dashboard';
+import LecturerDashboard from './components/LecturerDashboard/Dashboard';
 import KPIManagement from './components/AdminDashboard/KPIManagement';
 import UserList from './components/AdminDashboard/UserList';
 import DepartmentList from './components/AdminDashboard/DepartmentList';
-import HODWorkplanReview from './components/HODDashboard/HODWorkplanReview';
-
 
 import Navbar from './components/Layout/Navbar';
 
 import LecturerList from './components/HODDashboard/LecturerList';
 import LecturerProfile from './components/HODDashboard/LecturerProfile';
-import WorkplanSubmission from './components/HODDashboard/WorkplanSubmission';
-// import Reports from './components/Reports/Reports'; // Uncomment and modularize if needed
+import WorkplanAssignment from './components/WorkplanAssignment/WorkplanAssignment';
+import DeanEvaluations from './components/DeanDashboard/DeanEvaluations';
+import DeanAssignedWorkplans from './components/DeanDashboard/AssignedWorkplans';
+import HODWorkplans from './components/HODDashboard/HODWorkplans';
+import Reports from './components/Reports/Reports';
 
 function App() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Function to clear all authentication data
+  const clearAuthData = () => {
+    console.log('Clearing authentication data');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  // Debug helper - expose to window for debugging
+  useEffect(() => {
+    window.clearAuth = clearAuthData;
+    window.getAuthState = () => ({
+      isAuthenticated,
+      user,
+      localStorage: {
+        currentUser: localStorage.getItem('currentUser'),
+        authToken: localStorage.getItem('authToken')
+      }
+    });
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser');
-    const token = localStorage.getItem('authToken');
-    if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
+    // ALWAYS start at login page - clear any existing auth data on startup
+    const initializeApp = () => {
+      console.log('App startup - clearing all authentication data');
+      // Always clear auth data on startup to force login
+      clearAuthData();
+      
+      // Short delay to ensure clean startup
+      setTimeout(() => {
+        console.log('App initialization complete, going to login');
+        setIsLoading(false);
+      }, 500);
+    };
+    
+    initializeApp();
   }, []);
 
   const handleLogin = (userData) => {
@@ -39,16 +73,39 @@ function App() {
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('authToken');
+    clearAuthData();
   };
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <div className="App">
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          flexDirection: 'column',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '3px solid #11486B',
+            borderTop: '3px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ marginTop: '20px', color: '#11486B', fontSize: '16px' }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
       <div className="App">
-    {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
+        {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
         <Routes>
           <Route 
             path="/login" 
@@ -62,20 +119,16 @@ function App() {
           <Route 
             path="/dashboard" 
             element={
-              isAuthenticated ? 
-              <Dashboard user={user} /> : 
-              <Navigate to="/login" />
+              isAuthenticated ? (
+                user.role === 'admin' ? <AdminDashboard user={user} /> :
+                user.role === 'hod' ? <HODDashboard user={user} /> :
+                user.role === 'dean' ? <DeanDashboard user={user} /> :
+                <LecturerDashboard user={user} />
+              ) : (
+                <Navigate to="/login" />
+              )
             } 
           />
-
-          <Route 
-            path="/hod/review-workplans" 
-            element={
-              isAuthenticated && user.role === 'hod' ? 
-              <HODWorkplanReview user={user} /> : 
-              <Navigate to="/dashboard" />
-  } 
-/>
           
           <Route 
             path="/lecturers" 
@@ -108,26 +161,30 @@ function App() {
             path="/workplan" 
             element={
               isAuthenticated ? 
-              <WorkplanSubmission user={user} /> : 
+              <WorkplanAssignment user={user} /> : 
               <Navigate to="/login" />
             } 
           />
           
-          {/*
-          <Route 
-            path="/reports" 
-            element={
-              isAuthenticated ? 
-              <Reports user={user} /> : 
-              <Navigate to="/login" />
-            } 
-          />
-          */}
           
-          <Route path="/users" element={isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? <UserList user={user} /> : <Navigate to="/dashboard" />} />
-          <Route path="/departments" element={isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? <DepartmentList /> : <Navigate to="/dashboard" />} />
+          <Route path="/users" element={isAuthenticated && user.role === 'admin' ? <UserList user={user} /> : <Navigate to="/dashboard" />} />
+          <Route path="/departments" element={isAuthenticated && (user.role === 'admin' || user.role === 'dean') ? <DepartmentList /> : <Navigate to="/dashboard" />} />
+          <Route path="/evaluations" element={isAuthenticated && (user.role === 'admin' || user.role === 'hod' || user.role === 'dean') ? <DeanEvaluations user={user} /> : <Navigate to="/dashboard" />} />
+          <Route path="/workplans" element={
+            isAuthenticated ? 
+            (user.role === 'hod' ? <HODWorkplans user={user} /> : 
+             user.role === 'dean' ? <DeanAssignedWorkplans user={user} /> :
+             user.role === 'lecturer' ? <WorkplanAssignment user={user} /> :
+             <DeanAssignedWorkplans user={user} />) : 
+            <Navigate to="/login" />
+          } />
+          <Route path="/reports" element={isAuthenticated ? <Reports user={user} /> : <Navigate to="/login" />} />
 
-          <Route path="/" element={<Navigate to="/dashboard" />} />
+          {/* Default route - always redirect to login if not authenticated */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          {/* Catch-all route - redirect unknown paths to login or dashboard */}
+          <Route path="*" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
         </Routes>
       </div>
     </Router>

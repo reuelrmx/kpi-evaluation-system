@@ -15,6 +15,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<KpiAssignment> KpiAssignments => Set<KpiAssignment>();
     public DbSet<Workplan> Workplans => Set<Workplan>();
     public DbSet<Evaluation> Evaluations => Set<Evaluation>();
+    public DbSet<StandardWorkplan> StandardWorkplans => Set<StandardWorkplan>();
+    public DbSet<WorkplanAssignment> WorkplanAssignments => Set<WorkplanAssignment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -110,5 +112,55 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
         builder.Entity<Workplan>()
             .HasIndex(w => w.SubmittedAt);
+
+        // Configure StandardWorkplan relationships
+        builder.Entity<StandardWorkplan>()
+            .HasOne(sw => sw.CreatedBy)
+            .WithMany()
+            .HasForeignKey(sw => sw.CreatedById)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<StandardWorkplan>()
+            .HasIndex(sw => sw.TargetRole);
+
+        builder.Entity<StandardWorkplan>()
+            .HasIndex(sw => new { sw.AcademicYear, sw.Semester });
+
+        // Configure WorkplanAssignment relationships
+        builder.Entity<WorkplanAssignment>()
+            .HasOne(wa => wa.StandardWorkplan)
+            .WithMany(sw => sw.WorkplanAssignments)
+            .HasForeignKey(wa => wa.StandardWorkplanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<WorkplanAssignment>()
+            .HasOne(wa => wa.Assignee)
+            .WithMany()
+            .HasForeignKey(wa => wa.AssigneeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<WorkplanAssignment>()
+            .HasOne(wa => wa.AssignedBy)
+            .WithMany()
+            .HasForeignKey(wa => wa.AssignedById)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Ensure unique assignment per user per workplan
+        builder.Entity<WorkplanAssignment>()
+            .HasIndex(wa => new { wa.StandardWorkplanId, wa.AssigneeId })
+            .IsUnique();
+
+        // Add indexes for better performance
+        builder.Entity<WorkplanAssignment>()
+            .HasIndex(wa => wa.AssigneeId);
+
+        builder.Entity<WorkplanAssignment>()
+            .HasIndex(wa => wa.AssignedById);
+
+        builder.Entity<WorkplanAssignment>()
+            .HasIndex(wa => wa.Status);
+
+        builder.Entity<WorkplanAssignment>()
+            .HasIndex(wa => wa.AssignedAt);
     }
 }

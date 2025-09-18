@@ -1,34 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import './HODDashboard.css';
+import '../Dashboard/Dashboard.css';
+import { useUserContext } from '../../utils/api';
 import Dashboard from '../Dashboard/Dashboard';
-import api from '../../utils/api';
+import HODWorkplans from './HODWorkplans';
 
 const HODDashboard = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const user = useUserContext();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const currentUser = api.getCurrentUser();
-        if (!currentUser) return;
+  if (!user || !user.departmentId) {
+    return (
+      <div className="error-container">
+        <h2>Access Error</h2>
+        <p>Department access required. Please contact the administrator.</p>
+      </div>
+    );
+  }
 
-        // Fetch full user info from API (to get departmentId)
-        const fullUser = await api.getUser(currentUser.id);
-        setUser(fullUser);
-      } catch (error) {
-        console.error('Error fetching HOD info:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, []);
-
-  if (loading) return <div className="loading-spinner"></div>;
-  if (!user) return <div className="error-message">Failed to load HOD info.</div>;
-
-  return <Dashboard user={user} />;
+  return (
+    <div className="hod-dashboard-container">
+      {/* Main Dashboard with stats, charts, and quick actions */}
+      <Dashboard user={user} />
+      
+      {/* Department-specific workplan management */}
+      {user.role === 'hod' && <HODWorkplans user={user} />}
+      
+      {/* Additional HOD-specific components can be added here */}
+    </div>
+  );
 };
 
 export default HODDashboard;

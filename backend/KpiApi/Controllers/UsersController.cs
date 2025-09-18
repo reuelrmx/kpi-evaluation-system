@@ -39,6 +39,23 @@ namespace KpiApi.Controllers
             return Ok(lecturerList);
         }
 
+        [HttpGet("hods")]
+        [Authorize(Roles = "Admin,Dean")]
+        public async Task<IActionResult> GetHODs()
+        {
+            var hods = await _userManager.GetUsersInRoleAsync("HOD");
+            var hodList = hods.Select(u => new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                departmentId = u.DepartmentId,
+                department = u.Department?.Name
+            });
+            
+            return Ok(hodList);
+        }
+
         [HttpGet]
         [Authorize(Roles = "Admin,HOD,Dean")]
         public async Task<IActionResult> GetAllUsers()

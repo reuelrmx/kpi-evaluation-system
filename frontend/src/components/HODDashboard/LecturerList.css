@@ -680,3 +680,282 @@
     flex-direction: column;
   }
 }
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  gap: 0;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #e0e0e0;
+  background: white;
+  padding: 0 25px;
+  border-radius: 12px 12px 0 0;
+}
+
+.tab-btn {
+  padding: 15px 25px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: #11486B;
+  background-color: rgba(17, 72, 107, 0.05);
+}
+
+.tab-btn.active {
+  color: #11486B;
+  border-bottom-color: #11486B;
+  font-weight: 600;
+}
+
+/* Workplans Section */
+.workplans-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px 25px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.workplan-summary {
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.workplans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 25px;
+  margin-bottom: 20px;
+}
+
+.workplan-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.workplan-card:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+  transform: translateY(-3px);
+}
+
+.workplan-header {
+  padding: 25px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.workplan-info h3 {
+  margin: 0 0 10px 0;
+  color: #11486B;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.workplan-info .lecturer-name {
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+}
+
+.workplan-period {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.workplan-details {
+  padding: 20px 25px;
+  background: #f8f9fa;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 6px 0;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.workplan-details .detail-label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+  width: auto;
+}
+
+.workplan-details .detail-value {
+  font-weight: 500;
+  color: #333;
+  text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
+  font-size: 0.9rem;
+}
+
+.workplan-feedback {
+  padding: 20px 25px;
+  background: #fff3cd;
+  border-top: 1px solid #ffeeba;
+}
+
+.workplan-feedback h4 {
+  margin: 0 0 10px 0;
+  color: #856404;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.workplan-feedback p {
+  margin: 0;
+  color: #856404;
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.workplan-actions {
+  padding: 20px 25px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid #f0f0f0;
+}
+
+.workplan-actions .btn {
+  flex: 1;
+  min-width: auto;
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
+/* Additional Button Variants for Workplans */
+.btn-success {
+  background-color: #28a745;
+  color: white;
+  border: 1px solid #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+  border: 1px solid #ffc107;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+  transform: translateY(-1px);
+}
+
+/* No Workplans State */
+.no-workplans {
+  text-align: center;
+  padding: 80px 20px;
+  color: #666;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.no-workplans .no-results-icon {
+  font-size: 4rem;
+  color: #ddd;
+  margin-bottom: 20px;
+}
+
+.no-workplans h3 {
+  color: #11486B;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Mobile Responsive for Workplans */
+@media (max-width: 968px) {
+  .tab-navigation {
+    flex-direction: column;
+    gap: 0;
+    border-radius: 12px;
+  }
+  
+  .tab-btn {
+    border-bottom: none;
+    border-right: 3px solid transparent;
+    text-align: left;
+    padding: 15px 25px;
+  }
+  
+  .tab-btn.active {
+    border-right-color: #11486B;
+    border-bottom-color: transparent;
+  }
+  
+  .workplans-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .workplans-filters {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .workplan-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+  
+  .workplan-actions {
+    flex-direction: column;
+  }
+  
+  .workplan-actions .btn {
+    flex: none;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .workplan-details .detail-value {
+    max-width: 100%;
+    text-align: left;
+  }
+}

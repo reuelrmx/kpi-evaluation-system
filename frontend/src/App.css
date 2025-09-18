@@ -335,3 +335,9 @@ body {
 .scrollable::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Loading spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

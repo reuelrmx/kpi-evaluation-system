@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
+import apiService from '../../utils/api';
 import './WorkplanSubmission.css';
 
 const WorkplanSubmission = ({ user }) => {
@@ -13,83 +15,28 @@ const WorkplanSubmission = ({ user }) => {
     objectives: '',
     expectedOutcomes: ''
   });
-  
   const [assignedKPIs, setAssignedKPIs] = useState([]);
   const [submittedWorkplans, setSubmittedWorkplans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
-
-  // Mock KPIs assigned to the lecturer
-  const mockAssignedKPIs = [
-    {
-      id: 1,
-      title: 'Course Delivery',
-      description: 'Deliver assigned courses effectively',
-      category: 'teaching',
-      weight: 40,
-      targetValue: 85,
-      unit: 'percentage'
-    },
-    {
-      id: 2,
-      title: 'Research Publications',
-      description: 'Publish research papers in peer-reviewed journals',
-      category: 'research',
-      weight: 20,
-      targetValue: 2,
-      unit: 'papers'
-    },
-    {
-      id: 3,
-      title: 'Student Supervision',
-      description: 'Supervise undergraduate and postgraduate students',
-      category: 'service',
-      weight: 15,
-      targetValue: 3,
-      unit: 'students'
-    },
-    {
-      id: 4,
-      title: 'Departmental Meetings',
-      description: 'Participate in departmental meetings and activities',
-      category: 'service',
-      weight: 10,
-      targetValue: 80,
-      unit: 'percentage'
-    }
-  ];
-
-  // Mock submitted workplans
-  const mockSubmittedWorkplans = [
-    {
-      id: 1,
-      academicYear: '2023/2024',
-      semester: 'second',
-      submissionDate: '2024-02-15',
-      status: 'approved',
-      feedback: 'Well structured workplan with clear objectives.'
-    },
-    {
-      id: 2,
-      academicYear: '2023/2024',
-      semester: 'first',
-      submissionDate: '2023-09-10',
-      status: 'approved',
-      feedback: 'Good alignment with departmental goals.'
-    }
-  ];
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    const fetchKpis = async () => {
+    const fetchData = async () => {
+      setError('');
       try {
-        const kpis = await window.apiService?.getMyKpis?.() || [];
-        setAssignedKPIs(Array.isArray(kpis) && kpis.length > 0 ? kpis : mockAssignedKPIs);
+        // Fetch assigned KPIs
+        const kpis = await apiService.getMyKpis();
+        setAssignedKPIs(Array.isArray(kpis) ? kpis : []);
+        // Fetch submitted workplans
+        const workplans = await apiService.getMyWorkplans();
+        setSubmittedWorkplans(Array.isArray(workplans) ? workplans : []);
       } catch (err) {
-        setAssignedKPIs(mockAssignedKPIs);
+        setError('Failed to load KPIs or workplans.');
       }
     };
-    fetchKpis();
-    setSubmittedWorkplans(mockSubmittedWorkplans);
+    fetchData();
   }, []);
 
   const handleInputChange = (e) => {
@@ -103,36 +50,65 @@ const WorkplanSubmission = ({ user }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Add to submitted workplans
-    const newSubmission = {
-      id: Date.now(),
-      ...workplan,
-      submissionDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      feedback: null
-    };
-
-    setSubmittedWorkplans(prev => [newSubmission, ...prev]);
-
-    // Reset form
-    setWorkplan({
-      academicYear: '2024/2025',
-      semester: 'first',
-      teachingActivities: '',
-      researchActivities: '',
-      serviceActivities: '',
-      administrativeActivities: '',
-      professionalDevelopment: '',
-      objectives: '',
-      expectedOutcomes: ''
-    });
-
-    setLoading(false);
-    alert('Workplan submitted successfully!');
+    setError('');
+    try {
+      let submitEndpoint;
+      let successMessage;
+      
+      if (user.role === 'hod') {
+        // HOD submits to Dean
+        await apiService.submitWorkplanToDean({
+          ...workplan,
+          submitterId: user.id,
+          submitterRole: user.role,
+          departmentId: user.departmentId,
+          recipientType: 'dean'
+        });
+        successMessage = 'Workplan submitted to Dean successfully!';
+      } else if (user.role === 'lecturer') {
+        // Lecturer submits to HOD
+        await apiService.submitWorkplanToHOD({
+          ...workplan,
+          submitterId: user.id,
+          submitterRole: user.role,
+          departmentId: user.departmentId,
+          recipientType: 'hod'
+        });
+        successMessage = 'Workplan submitted to HOD successfully!';
+      } else {
+        // Default submission
+        await apiService.createWorkplan({
+          ...workplan,
+          submitterId: user.id,
+          submitterRole: user.role
+        });
+        successMessage = 'Workplan submitted successfully!';
+      }
+      
+      // Refresh submitted workplans
+      const workplans = await apiService.getMyWorkplans();
+      setSubmittedWorkplans(Array.isArray(workplans) ? workplans : []);
+      
+      // Reset form
+      setWorkplan({
+        academicYear: '2024/2025',
+        semester: 'first',
+        teachingActivities: '',
+        researchActivities: '',
+        serviceActivities: '',
+        administrativeActivities: '',
+        professionalDevelopment: '',
+        objectives: '',
+        expectedOutcomes: ''
+      });
+      
+      alert(successMessage);
+    } catch (err) {
+      console.error('Error submitting workplan:', err);
+      setError('Failed to submit workplan. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -171,9 +147,16 @@ const WorkplanSubmission = ({ user }) => {
   return (
     <div className="workplan-container">
       <div className="page-header">
-        <h1>My Workplan</h1>
-        <p>Plan and track your academic activities and KPIs</p>
+        <h1>{user.role === 'hod' ? 'Department Workplan' : 'My Workplan'}</h1>
+        <p>
+          {user.role === 'hod' 
+            ? 'Plan your department activities and submit to Dean for review'
+            : 'Plan and track your academic activities and KPIs'
+          }
+        </p>
       </div>
+
+      {error && <div className="error">{error}</div>}
 
       <div className="tab-navigation">
         <button 
@@ -441,6 +424,30 @@ const WorkplanSubmission = ({ user }) => {
               <div className="card-header">
                 <h2 className="card-title">Workplan Submission History</h2>
                 <p>View your previously submitted workplans</p>
+                {submittedWorkplans.length > 0 && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      setError('');
+                      try {
+                        await apiService.exportMyDepartmentReport(
+                          workplan.academicYear,
+                          workplan.semester,
+                          'pdf'
+                        );
+                        alert('Report export started. Check your downloads.');
+                      } catch (err) {
+                        setError('Failed to export report.');
+                      } finally {
+                        setExporting(false);
+                      }
+                    }}
+                  >
+                    <span className="material-icons" style={{verticalAlign:'middle'}}>download</span> Export PDF
+                  </button>
+                )}
               </div>
 
               {submittedWorkplans.length > 0 ? (
@@ -473,7 +480,7 @@ const WorkplanSubmission = ({ user }) => {
                           View Details
                         </button>
                         <button className="btn btn-sm btn-secondary">
-                          Download PDF
+                          <span className="material-icons" style={{verticalAlign:'middle'}}>download</span> Download PDF
                         </button>
                       </div>
                     </div>
@@ -481,7 +488,7 @@ const WorkplanSubmission = ({ user }) => {
                 </div>
               ) : (
                 <div className="no-history">
-                  <div className="no-history-icon">📄</div>
+                  <div className="no-history-icon material-icons">description</div>
                   <h3>No Submissions Yet</h3>
                   <p>Your workplan submissions will appear here once you submit them.</p>
                 </div>

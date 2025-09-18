@@ -105,9 +105,12 @@ namespace KpiApi.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Departments");
                 });
@@ -121,13 +124,13 @@ namespace KpiApi.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comments")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<DateTime>("EvaluatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("HodId")
-                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.Property<int>("KpiId")
@@ -138,9 +141,17 @@ namespace KpiApi.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<decimal>("Score")
-                        .HasColumnType("decimal(65,30)");
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EvaluatedAt");
 
                     b.HasIndex("HodId");
 
@@ -163,9 +174,6 @@ namespace KpiApi.Migrations
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
@@ -174,13 +182,12 @@ namespace KpiApi.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<decimal>("Weight")
-                        .HasColumnType("decimal(65,30)");
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedByHodId");
-
-                    b.HasIndex("DepartmentId");
 
                     b.ToTable("Kpis");
                 });
@@ -195,7 +202,7 @@ namespace KpiApi.Migrations
 
                     b.Property<string>("AcademicYear")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<int>("KpiId")
                         .HasColumnType("int");
@@ -206,7 +213,7 @@ namespace KpiApi.Migrations
 
                     b.Property<string>("Semester")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
 
@@ -214,7 +221,94 @@ namespace KpiApi.Migrations
 
                     b.HasIndex("LecturerId");
 
+                    b.HasIndex("KpiId", "LecturerId", "AcademicYear", "Semester")
+                        .IsUnique();
+
                     b.ToTable("KpiAssignments");
+                });
+
+            modelBuilder.Entity("KpiApi.Models.StandardWorkplan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AcademicYear")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("AdministrativeActivities")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("ExpectedOutcomes")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Objectives")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProfessionalDevelopment")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ResearchActivities")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Semester")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ServiceActivities")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TargetRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("TeachingActivities")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("TargetRole");
+
+                    b.HasIndex("AcademicYear", "Semester");
+
+                    b.ToTable("StandardWorkplans");
                 });
 
             modelBuilder.Entity("KpiApi.Models.Workplan", b =>
@@ -246,7 +340,76 @@ namespace KpiApi.Migrations
 
                     b.HasIndex("LecturerId");
 
+                    b.HasIndex("SubmittedAt");
+
                     b.ToTable("Workplans");
+                });
+
+            modelBuilder.Entity("KpiApi.Models.WorkplanAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("AssignedById")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("AssigneeId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("AssignmentNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CompletionNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewFeedback")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("StandardWorkplanId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedAt");
+
+                    b.HasIndex("AssignedById");
+
+                    b.HasIndex("AssigneeId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("StandardWorkplanId", "AssigneeId")
+                        .IsUnique();
+
+                    b.ToTable("WorkplanAssignments");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -385,7 +548,8 @@ namespace KpiApi.Migrations
                 {
                     b.HasOne("KpiApi.Models.Department", "Department")
                         .WithMany("Users")
-                        .HasForeignKey("DepartmentId");
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Department");
                 });
@@ -395,13 +559,12 @@ namespace KpiApi.Migrations
                     b.HasOne("KpiApi.Models.AppUser", "Hod")
                         .WithMany()
                         .HasForeignKey("HodId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("KpiApi.Models.Kpi", "Kpi")
                         .WithMany()
                         .HasForeignKey("KpiId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("KpiApi.Models.AppUser", "Lecturer")
@@ -422,16 +585,10 @@ namespace KpiApi.Migrations
                     b.HasOne("KpiApi.Models.AppUser", "CreatedByHod")
                         .WithMany()
                         .HasForeignKey("CreatedByHodId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("KpiApi.Models.Department", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId");
-
                     b.Navigation("CreatedByHod");
-
-                    b.Navigation("Department");
                 });
 
             modelBuilder.Entity("KpiApi.Models.KpiAssignment", b =>
@@ -453,6 +610,16 @@ namespace KpiApi.Migrations
                     b.Navigation("Lecturer");
                 });
 
+            modelBuilder.Entity("KpiApi.Models.StandardWorkplan", b =>
+                {
+                    b.HasOne("KpiApi.Models.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+                });
+
             modelBuilder.Entity("KpiApi.Models.Workplan", b =>
                 {
                     b.HasOne("KpiApi.Models.AppUser", "Lecturer")
@@ -462,6 +629,33 @@ namespace KpiApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Lecturer");
+                });
+
+            modelBuilder.Entity("KpiApi.Models.WorkplanAssignment", b =>
+                {
+                    b.HasOne("KpiApi.Models.AppUser", "AssignedBy")
+                        .WithMany()
+                        .HasForeignKey("AssignedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KpiApi.Models.AppUser", "Assignee")
+                        .WithMany()
+                        .HasForeignKey("AssigneeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KpiApi.Models.StandardWorkplan", "StandardWorkplan")
+                        .WithMany("WorkplanAssignments")
+                        .HasForeignKey("StandardWorkplanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedBy");
+
+                    b.Navigation("Assignee");
+
+                    b.Navigation("StandardWorkplan");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -518,6 +712,11 @@ namespace KpiApi.Migrations
             modelBuilder.Entity("KpiApi.Models.Department", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("KpiApi.Models.StandardWorkplan", b =>
+                {
+                    b.Navigation("WorkplanAssignments");
                 });
 #pragma warning restore 612, 618
         }

@@ -13,13 +13,19 @@ const LecturerList = ({ user }) => {
   const [error, setError] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showEvaluateModal, setShowEvaluateModal] = useState(false);
+  const [showAssignWorkplanModal, setShowAssignWorkplanModal] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState(null);
   const [availableKpis, setAvailableKpis] = useState([]);
+  const [availableWorkplans, setAvailableWorkplans] = useState([]);
   const [kpiAssignments, setKpiAssignments] = useState([]);
   const [assignmentForm, setAssignmentForm] = useState({
     kpiId: '',
     academicYear: '',
     semester: ''
+  });
+  const [workplanAssignmentForm, setWorkplanAssignmentForm] = useState({
+    standardWorkplanId: '',
+    assignmentNotes: ''
   });
   const [evaluationForm, setEvaluationForm] = useState({
     kpiId: '',
@@ -27,6 +33,10 @@ const LecturerList = ({ user }) => {
     comments: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('lecturers');
+  const [workplans, setWorkplans] = useState([]);
+  const [filteredWorkplans, setFilteredWorkplans] = useState([]);
+  const [workplanFilter, setWorkplanFilter] = useState('all');
   
   useEffect(() => {
     
@@ -43,8 +53,18 @@ const LecturerList = ({ user }) => {
 
         console.log('Fetching lecturers with token:', token ? 'Token exists' : 'No token');
         
-        // Call real API endpoint
-        const response = await apiService.getLecturers();
+        // Call appropriate API endpoint based on user role
+        let response;
+        if (user.role === 'dean') {
+          // Dean should see HODs, not lecturers
+          response = await apiService.getHODs();
+        } else if (user.role === 'hod') {
+          // HODs see only their department's lecturers
+          response = await apiService.getMyDepartmentLecturers();
+        } else {
+          // Admins see all lecturers
+          response = await apiService.getLecturers();
+        }
         console.log('API Response:', response);
         
         // Handle empty response
@@ -61,7 +81,7 @@ const LecturerList = ({ user }) => {
           name: lecturer.fullName,
           email: lecturer.email,
           department: lecturer.department || 'Unassigned',
-          position: 'Lecturer', // Default position since API doesn't provide this
+          position: user.role === 'dean' ? 'HOD' : 'Lecturer', // Show HOD for Dean users
           joinDate: '2020-01-01', // Default date - you can get this from user creation date
           assignedKPIs: 0, // Will be populated by KPI assignments API later
           completedKPIs: 0, // Will be populated by evaluations API later
@@ -88,7 +108,76 @@ const LecturerList = ({ user }) => {
     };
 
     fetchLecturers();
+    fetchWorkplans();
   }, []);
+
+  const fetchWorkplans = async () => {
+    try {
+      // Fetch workplans submitted by lecturers in HOD's department
+      const response = await apiService.get('/workplans/for-review');
+      const workplansData = response.data || [
+        // Mock data for demonstration
+        {
+          id: 1,
+          lecturerName: 'Dr. John Smith',
+          lecturerId: 1,
+          academicYear: '2024/2025',
+          semester: 'First Term',
+          submissionDate: '2024-01-15',
+          status: 'pending',
+          title: 'Teaching & Research Plan',
+          teachingLoad: '12 hours/week',
+          researchFocus: 'Machine Learning Applications'
+        },
+        {
+          id: 2,
+          lecturerName: 'Dr. Sarah Johnson',
+          lecturerId: 2,
+          academicYear: '2024/2025',
+          semester: 'First Term',
+          submissionDate: '2024-01-12',
+          status: 'approved',
+          title: 'Software Engineering Curriculum',
+          teachingLoad: '15 hours/week',
+          researchFocus: 'Agile Development Methods'
+        },
+        {
+          id: 3,
+          lecturerName: 'Dr. Michael Brown',
+          lecturerId: 3,
+          academicYear: '2024/2025',
+          semester: 'First Term',
+          submissionDate: '2024-01-18',
+          status: 'needs-revision',
+          title: 'Database Systems & Research',
+          teachingLoad: '10 hours/week',
+          researchFocus: 'NoSQL Database Optimization',
+          feedback: 'Please provide more details on the research methodology.'
+        }
+      ];
+      setWorkplans(workplansData);
+      setFilteredWorkplans(workplansData);
+    } catch (error) {
+      console.error('Error fetching workplans:', error);
+      // Set mock data on error for development
+      const mockData = [
+        {
+          id: 1,
+          lecturerName: 'Dr. John Smith',
+          lecturerId: 1,
+          academicYear: '2024/2025',
+          semester: 'First Term',
+          submissionDate: '2024-01-15',
+          status: 'pending',
+          title: 'Teaching & Research Plan',
+          teachingLoad: '12 hours/week',
+          researchFocus: 'Machine Learning Applications'
+        }
+      ];
+      setWorkplans(mockData);
+      setFilteredWorkplans(mockData);
+    }
+  };
 
   useEffect(() => {
     // Filter and sort lecturers based on search, department, and sort criteria
@@ -118,6 +207,15 @@ const LecturerList = ({ user }) => {
 
     setFilteredLecturers(filtered);
   }, [lecturers, searchTerm, selectedDepartment, sortBy]);
+
+  // Filter workplans based on status
+  useEffect(() => {
+    let filtered = workplans;
+    if (workplanFilter !== 'all') {
+      filtered = workplans.filter(workplan => workplan.status === workplanFilter);
+    }
+    setFilteredWorkplans(filtered);
+  }, [workplans, workplanFilter]);
 
   const getStatusBadge = (status) => {
     const statusMap = {
@@ -156,6 +254,45 @@ const LecturerList = ({ user }) => {
 
   const handleRefresh = () => {
     window.location.reload(); // Simple refresh - you can make this more elegant
+  };
+
+  const handleWorkplanAction = async (workplanId, action, feedback = '') => {
+    setSubmitting(true);
+    try {
+      await apiService.put(`/workplans/${workplanId}/review`, {
+        status: action,
+        feedback: feedback
+      });
+      
+      // Update local state
+      setWorkplans(prev => prev.map(wp => 
+        wp.id === workplanId 
+          ? { ...wp, status: action, feedback: feedback }
+          : wp
+      ));
+      
+      alert(`Workplan ${action} successfully!`);
+    } catch (error) {
+      console.error('Error updating workplan:', error);
+      alert('Failed to update workplan status.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getWorkplanStatusBadge = (status) => {
+    const statusMap = {
+      pending: { label: 'Pending Review', class: 'badge-warning' },
+      approved: { label: 'Approved', class: 'badge-success' },
+      'needs-revision': { label: 'Needs Revision', class: 'badge-danger' }
+    };
+    
+    const statusInfo = statusMap[status] || statusMap.pending;
+    return (
+      <span className={`badge ${statusInfo.class}`}>
+        {statusInfo.label}
+      </span>
+    );
   };
 
   // Handle Assign KPI Modal
@@ -239,18 +376,62 @@ const LecturerList = ({ user }) => {
 
     setSubmitting(true);
     try {
-      await apiService.createEvaluation({
+      const res = await apiService.createEvaluation({
         lecturerId: selectedLecturer.id,
         kpiId: parseInt(evaluationForm.kpiId),
         score: parseFloat(evaluationForm.score),
         comments: evaluationForm.comments
       });
-      
+      if (!res || typeof res !== 'object') {
+        alert('Failed to submit evaluation: The server did not return a valid response.');
+        return;
+      }
       setShowEvaluateModal(false);
       alert('Evaluation submitted successfully!');
       setSelectedLecturer(null);
     } catch (error) {
       alert('Failed to submit evaluation: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle Assign Workplan Modal
+  const handleOpenAssignWorkplanModal = async (lecturer) => {
+    try {
+      setSelectedLecturer(lecturer);
+      const workplans = await apiService.getStandardWorkplansForAssignment();
+      setAvailableWorkplans(workplans);
+      setShowAssignWorkplanModal(true);
+      setWorkplanAssignmentForm({
+        standardWorkplanId: '',
+        assignmentNotes: ''
+      });
+    } catch (error) {
+      setError('Failed to load available workplans');
+    }
+  };
+
+  const handleAssignWorkplan = async (e) => {
+    e.preventDefault();
+    if (!workplanAssignmentForm.standardWorkplanId) {
+      alert('Please select a workplan');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await apiService.assignWorkplan({
+        standardWorkplanId: parseInt(workplanAssignmentForm.standardWorkplanId),
+        assigneeId: selectedLecturer.id,
+        assignmentNotes: workplanAssignmentForm.assignmentNotes
+      });
+      
+      setShowAssignWorkplanModal(false);
+      alert('Workplan assigned successfully!');
+      setSelectedLecturer(null);
+    } catch (error) {
+      alert('Failed to assign workplan: ' + (error.message || 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
@@ -282,13 +463,17 @@ const LecturerList = ({ user }) => {
     <div className="lecturer-list-container">
       <div className="page-header">
         <div className="header-content">
-          <h1>Lecturer Management</h1>
-          <p>View and manage all lecturers in the School of ICT</p>
+          <h1>{user.role === 'dean' ? 'HOD Management' : 'Department Management'}</h1>
+          <p>{user.role === 'dean' ? 'View and manage all HODs in the Faculty' : 'Manage lecturers and review workplans'}</p>
         </div>
         <div className="header-stats">
           <div className="stat-item">
             <span className="stat-number">{lecturers.filter(l => l.status === 'active').length}</span>
-            <span className="stat-label">Active Lecturers</span>
+            <span className="stat-label">{user.role === 'dean' ? 'Active HODs' : 'Active Lecturers'}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{workplans.filter(wp => wp.status === 'pending').length}</span>
+            <span className="stat-label">Pending Reviews</span>
           </div>
           <div className="stat-item">
             <span className="stat-number">{getDepartments().length}</span>
@@ -297,8 +482,13 @@ const LecturerList = ({ user }) => {
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="filters-section">
+      {/* For HODs, we only show lecturers since workplan reviews are replaced with assignments */}
+
+      {/* Lecturers Tab - Always show for HODs and Deans */}
+      {(
+        <>
+          {/* Filters and Search */}
+          <div className="filters-section">
         <div className="search-box">
           <input
             type="text"
@@ -307,7 +497,7 @@ const LecturerList = ({ user }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
-          <span className="search-icon">🔍</span>
+          <span className="search-icon material-icons">search</span>
         </div>
 
         <div className="filter-controls">
@@ -342,17 +532,17 @@ const LecturerList = ({ user }) => {
           </div>
 
           <button onClick={handleRefresh} className="btn btn-outline btn-sm">
-            🔄 Refresh
+            <span className="material-icons">refresh</span> Refresh
           </button>
         </div>
       </div>
 
       {/* Results Summary */}
       <div className="results-summary">
-        <p>Showing {filteredLecturers.length} of {lecturers.length} lecturers</p>
+        <p>Showing {filteredLecturers.length} of {lecturers.length} {user.role === 'dean' ? 'HODs' : 'lecturers'}</p>
         {lecturers.length === 0 && !loading && (
           <p className="note">
-            ℹ️ No lecturers found. Create some test lecturer accounts using the registration API.
+            <span className="material-icons" style={{verticalAlign:'middle'}}>info</span> No {user.role === 'dean' ? 'HODs' : 'lecturers'} found. {user.role === 'dean' ? 'Create some test HOD accounts' : 'Create some test lecturer accounts'} using the registration API.
           </p>
         )}
       </div>
@@ -377,19 +567,19 @@ const LecturerList = ({ user }) => {
 
             <div className="lecturer-details">
               <div className="detail-row">
-                <span className="detail-label">📧 Email:</span>
+                <span className="detail-label material-icons" title="Email">mail</span>
                 <span className="detail-value">{lecturer.email}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">📞 Phone:</span>
+                <span className="detail-label material-icons" title="Phone">call</span>
                 <span className="detail-value">{lecturer.phone}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">🏢 Office:</span>
+                <span className="detail-label material-icons" title="Office">location_on</span>
                 <span className="detail-value">{lecturer.officeLocation}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">📅 Joined:</span>
+                <span className="detail-label material-icons" title="Joined">event</span>
                 <span className="detail-value">{formatDate(lecturer.joinDate)}</span>
               </div>
             </div>
@@ -437,13 +627,19 @@ const LecturerList = ({ user }) => {
               >
                 View Profile
               </Link>
-              {(user.role === 'admin' || user.role === 'hod') && (
+              {(user.role === 'admin' || user.role === 'hod' || user.role === 'dean') && (
                 <>
                   <button 
                     className="btn btn-outline btn-sm"
                     onClick={() => handleOpenAssignModal(lecturer)}
                   >
                     Assign KPIs
+                  </button>
+                  <button 
+                    className="btn btn-info btn-sm"
+                    onClick={() => handleOpenAssignWorkplanModal(lecturer)}
+                  >
+                    Assign Workplan
                   </button>
                   <button 
                     className="btn btn-secondary btn-sm"
@@ -460,10 +656,12 @@ const LecturerList = ({ user }) => {
 
       {filteredLecturers.length === 0 && lecturers.length > 0 && (
         <div className="no-results">
-          <div className="no-results-icon">🔍</div>
-          <h3>No lecturers found</h3>
+          <div className="no-results-icon material-icons">search_off</div>
+          <h3>No {user.role === 'dean' ? 'HODs' : 'lecturers'} found</h3>
           <p>Try adjusting your search criteria or filters.</p>
         </div>
+      )}
+        </>
       )}
 
       {/* Assign KPI Modal */}

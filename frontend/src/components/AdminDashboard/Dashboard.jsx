@@ -33,7 +33,17 @@ const Dashboard = ({ user }) => {
         setDepartmentData(deptRes || []);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again.');
+        if (err.response?.status === 401) {
+          setError('Your session has expired. Please log in again to continue.');
+          // Redirect to login after a short delay
+          setTimeout(() => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }, 3000);
+        } else {
+          setError('Failed to load dashboard data. Please try again.');
+        }
         setStats({});
         setPerformanceData([]);
         setRecentActivity([]);
@@ -42,7 +52,13 @@ const Dashboard = ({ user }) => {
         setLoading(false);
       }
     };
-    fetchDashboardData();
+    // Only fetch if we have a user
+    if (user) {
+      fetchDashboardData();
+    } else {
+      setError('No user found. Please log in.');
+      setLoading(false);
+    }
   }, [user]);
 
 
@@ -164,28 +180,36 @@ const Dashboard = ({ user }) => {
 
       <div className="stats-grid">
         <div className="stat-card">
+          <div className="stat-icon">🏢</div>
           <div className="stat-content">
-            <h3>{stats.totalDepartments || 0}</h3>
+            <h3>{stats.TotalDepartments || 0}</h3>
             <p>Departments</p>
           </div>
+          <Link to="/departments" className="stat-link">View →</Link>
         </div>
         <div className="stat-card">
+          <div className="stat-icon">👥</div>
           <div className="stat-content">
-            <h3>{stats.totalLecturers || 0}</h3>
+            <h3>{stats.TotalUsers || 0}</h3>
             <p>Faculty Members</p>
           </div>
+          <Link to="/lecturers" className="stat-link">View →</Link>
         </div>
         <div className="stat-card">
+          <div className="stat-icon">✅</div>
           <div className="stat-content">
-            <h3>{stats.completedEvaluations || 0}</h3>
-            <p>Completed Evaluations</p>
+            <h3>{stats.TotalEvaluations || 0}</h3>
+            <p>Total Evaluations</p>
           </div>
+          <Link to="/evaluations" className="stat-link">Review →</Link>
         </div>
         <div className="stat-card">
+          <div className="stat-icon">📋</div>
           <div className="stat-content">
-            <h3>{stats.pendingApprovals || 0}</h3>
-            <p>Pending Reviews</p>
+            <h3>{stats.TotalWorkplans || 0}</h3>
+            <p>Workplans</p>
           </div>
+          <Link to="/workplans" className="stat-link">Review →</Link>
         </div>
       </div>
 
@@ -326,11 +350,11 @@ const Dashboard = ({ user }) => {
         <h2 className="card-title">Quick Actions</h2>
       </div>
       <div className="quick-actions-grid">
-        {user.roles?.includes('Admin') && (
+        {user.role === 'admin' && (
           <>
-            <Link to="/users/create" className="action-btn">
+            <Link to="/users" className="action-btn">
               <span className="action-icon">➕</span>
-              <span>Add User</span>
+              <span>Manage Users</span>
             </Link>
             <Link to="/kpi-management" className="action-btn">
               <span className="action-icon">📊</span>
@@ -340,52 +364,60 @@ const Dashboard = ({ user }) => {
               <span className="action-icon">🏢</span>
               <span>Departments</span>
             </Link>
+            <Link to="/reports" className="action-btn">
+              <span className="action-icon">📈</span>
+              <span>System Reports</span>
+            </Link>
           </>
         )}
         
-        {user.roles?.includes('Dean') && (
+        {user.role === 'dean' && (
           <>
-            <Link to="/faculty-reports" className="action-btn">
-              <span className="action-icon">📄</span>
-              <span>Reports</span>
+            <Link to="/departments" className="action-btn">
+              <span className="action-icon">🏢</span>
+              <span>Departments</span>
             </Link>
-            <Link to="/policy-review" className="action-btn">
+            <Link to="/lecturers" className="action-btn">
+              <span className="action-icon">👥</span>
+              <span>Manage HODs</span>
+            </Link>
+            <Link to="/workplans" className="action-btn">
               <span className="action-icon">📋</span>
-              <span>Policies</span>
+              <span>Review Workplans</span>
+            </Link>
+            <Link to="/reports" className="action-btn">
+              <span className="action-icon">📄</span>
+              <span>View Reports</span>
             </Link>
           </>
         )}
         
-        {user.roles?.includes('HOD') && (
+        {user.role === 'hod' && (
           <>
-            <Link to="/team-management" className="action-btn">
+            <Link to="/lecturers" className="action-btn">
               <span className="action-icon">👥</span>
               <span>My Team</span>
             </Link>
-            <Link to="/kpi-assignment" className="action-btn">
+            <Link to="/workplan" className="action-btn">
               <span className="action-icon">📋</span>
-              <span>Assign KPIs</span>
+              <span>My Workplan</span>
             </Link>
-            <Link to="/evaluation-review" className="action-btn">
+            <Link to="/reports" className="action-btn">
               <span className="action-icon">✅</span>
-              <span>Review Evals</span>
+              <span>Reports & Evaluations</span>
             </Link>
           </>
         )}
         
-        {user.roles?.includes('Lecturer') && (
+        {user.role === 'lecturer' && (
           <>
             <Link to="/workplan" className="action-btn">
               <span className="action-icon">📝</span>
-              <span>Workplan</span>
+              <span>My Workplan</span>
             </Link>
-            <Link to="/my-kpis" className="action-btn">
+            <Link to="/reports" className="action-btn">
               <span className="action-icon">📊</span>
-              <span>My KPIs</span>
-            </Link>
-            <Link to="/submissions" className="action-btn">
-              <span className="action-icon">📤</span>
-              <span>Submissions</span>
+              <span>My Performance</span>
             </Link>
           </>
         )}
@@ -421,9 +453,12 @@ const Dashboard = ({ user }) => {
   if (loading) {
     return (
       <div className="dashboard-container">
-        <div className="loading">
-          <div className="loading-spinner"></div>
-          Loading dashboard data...
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="loading-spinner"></div>
+            <p>Loading dashboard data...</p>
+            <p className="loading-subtext">Please wait while we fetch your information</p>
+          </div>
         </div>
       </div>
     );
@@ -432,12 +467,26 @@ const Dashboard = ({ user }) => {
   if (error) {
     return (
       <div className="dashboard-container">
-        <div className="error-message">
-          <h3>⚠️ Dashboard Error</h3>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="btn btn-primary">
-            Retry
-          </button>
+        <div className="error-container">
+          <div className="error-content">
+            <h3>⚠️ Dashboard Error</h3>
+            <p>{error}</p>
+            {error.includes('session has expired') || error.includes('Please log in') ? (
+              <button 
+                onClick={() => window.location.href = '/login'} 
+                className="btn btn-primary"
+              >
+                Go to Login
+              </button>
+            ) : (
+              <button 
+                onClick={() => window.location.reload()} 
+                className="btn btn-primary"
+              >
+                Retry Loading
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -445,10 +494,10 @@ const Dashboard = ({ user }) => {
 
   return (
     <div className="dashboard-container">
-      {user.roles?.includes('Admin') && renderAdminDashboard()}
-      {user.roles?.includes('Dean') && renderDeanDashboard()}
-      {user.roles?.includes('HOD') && renderHODDashboard()}
-      {user.roles?.includes('Lecturer') && renderLecturerDashboard()}
+      {user.role === 'admin' && renderAdminDashboard()}
+      {user.role === 'dean' && renderDeanDashboard()}
+      {user.role === 'hod' && renderHODDashboard()}
+      {user.role === 'lecturer' && renderLecturerDashboard()}
       
       <div className="dashboard-content">
         <div className="content-column">

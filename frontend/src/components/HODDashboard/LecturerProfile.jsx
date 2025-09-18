@@ -15,11 +15,17 @@ const LecturerProfile = ({ user }) => {
   const [error, setError] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showEvaluateModal, setShowEvaluateModal] = useState(false);
+  const [showAssignWorkplanModal, setShowAssignWorkplanModal] = useState(false);
   const [availableKpis, setAvailableKpis] = useState([]);
+  const [availableWorkplans, setAvailableWorkplans] = useState([]);
   const [assignmentForm, setAssignmentForm] = useState({
     kpiId: '',
     academicYear: '',
     semester: ''
+  });
+  const [workplanAssignmentForm, setWorkplanAssignmentForm] = useState({
+    standardWorkplanId: '',
+    assignmentNotes: ''
   });
   const [evaluationForm, setEvaluationForm] = useState({
     kpiId: '',
@@ -236,6 +242,45 @@ const LecturerProfile = ({ user }) => {
     }
   };
 
+  // Handle Assign Workplan Modal
+  const handleOpenAssignWorkplanModal = async () => {
+    try {
+      const workplans = await apiService.getStandardWorkplansForAssignment();
+      setAvailableWorkplans(workplans);
+      setShowAssignWorkplanModal(true);
+      setWorkplanAssignmentForm({
+        standardWorkplanId: '',
+        assignmentNotes: ''
+      });
+    } catch (error) {
+      setError('Failed to load available workplans');
+    }
+  };
+
+  const handleAssignWorkplan = async (e) => {
+    e.preventDefault();
+    if (!workplanAssignmentForm.standardWorkplanId) {
+      alert('Please select a workplan');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await apiService.assignWorkplan({
+        standardWorkplanId: parseInt(workplanAssignmentForm.standardWorkplanId),
+        assigneeId: lecturer.id,
+        assignmentNotes: workplanAssignmentForm.assignmentNotes
+      });
+      
+      setShowAssignWorkplanModal(false);
+      alert('Workplan assigned successfully!');
+    } catch (error) {
+      alert('Failed to assign workplan: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Handle Evaluate Modal
   const handleOpenEvaluateModal = () => {
     if (kpiAssignments.length === 0) {
@@ -321,9 +366,9 @@ const LecturerProfile = ({ user }) => {
           <p className="lecturer-position">Lecturer</p>
           <p className="lecturer-department">{lecturer.department || 'Department Not Assigned'}</p>
           <div className="contact-info">
-            <span className="contact-item">📧 {lecturer.email}</span>
-            <span className="contact-item">📞 N/A</span>
-            <span className="contact-item">🏢 N/A</span>
+            <span className="contact-item material-icons" title="Email">mail</span> {lecturer.email}
+            <span className="contact-item material-icons" title="Phone">call</span> N/A
+            <span className="contact-item material-icons" title="Office">location_on</span> N/A
           </div>
         </div>
         <div className="profile-stats">
@@ -434,11 +479,11 @@ const LecturerProfile = ({ user }) => {
                 {user?.role === 'lecturer' && user.id === lecturer.id && (
                   <>
                     <button className="action-btn">
-                      <span className="action-icon">📝</span>
+                      <span className="action-icon material-icons">edit_note</span>
                       Update Progress
                     </button>
                     <button className="action-btn">
-                      <span className="action-icon">📄</span>
+                      <span className="action-icon material-icons">description</span>
                       Submit Workplan
                     </button>
                   </>
@@ -446,15 +491,19 @@ const LecturerProfile = ({ user }) => {
                 {(user?.role === 'admin' || user?.role === 'hod' || user?.role === 'dean') && (
                   <>
                     <button className="action-btn" onClick={handleOpenAssignModal}>
-                      <span className="action-icon">📊</span>
+                      <span className="action-icon material-icons">assignment</span>
                       Assign KPI
                     </button>
+                    <button className="action-btn" onClick={handleOpenAssignWorkplanModal}>
+                      <span className="action-icon material-icons">assignment_turned_in</span>
+                      Assign Workplan
+                    </button>
                     <button className="action-btn" onClick={handleOpenEvaluateModal}>
-                      <span className="action-icon">✅</span>
+                      <span className="action-icon material-icons">fact_check</span>
                       Evaluate Performance
                     </button>
                     <button className="action-btn">
-                      <span className="action-icon">📄</span>
+                      <span className="action-icon material-icons">summarize</span>
                       Generate Report
                     </button>
                   </>
@@ -567,10 +616,10 @@ const LecturerProfile = ({ user }) => {
                       {formatDate(activity.date)}
                     </div>
                     <div className="activity-content">
-                      <div className="activity-icon">
-                        {activity.type === 'submission' && '📤'}
-                        {activity.type === 'evaluation' && '📊'}
-                        {activity.type === 'kpi_update' && '📄'}
+                      <div className="activity-icon material-icons">
+                        {activity.type === 'submission' && 'upload_file'}
+                        {activity.type === 'evaluation' && 'bar_chart'}
+                        {activity.type === 'kpi_update' && 'assignment'}
                       </div>
                       <div className="activity-description">
                         {activity.description}
@@ -583,6 +632,25 @@ const LecturerProfile = ({ user }) => {
                 )) : (
                   <div className="no-data">No recent activities found</div>
                 )}
+      {/* Workplans Section for HODs */}
+      {user?.role === 'hod' && workplans.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Workplans Submitted to You</h3>
+          </div>
+          <div className="workplans-list">
+            {workplans.map(wp => (
+              <div key={wp.id} className="workplan-item">
+                <div><strong>Academic Year:</strong> {wp.academicYear}</div>
+                <div><strong>Semester:</strong> {wp.semester}</div>
+                <div><strong>Status:</strong> {wp.status}</div>
+                <div><strong>Submitted At:</strong> {formatDate(wp.submittedAt || wp.submissionDate)}</div>
+                <div><strong>Actions:</strong> <button className="btn btn-outline btn-sm">View</button></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
               </div>
             </div>
           </div>
@@ -807,6 +875,72 @@ const LecturerProfile = ({ user }) => {
                   disabled={submitting}
                 >
                   {submitting ? 'Submitting...' : 'Submit Evaluation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Workplan Modal */}
+      {showAssignWorkplanModal && (
+        <div className="modal-overlay" onClick={() => setShowAssignWorkplanModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Assign Workplan to {lecturer.fullName || lecturer.name}</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowAssignWorkplanModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleAssignWorkplan} className="modal-form">
+              <div className="form-group">
+                <label htmlFor="workplan-select" className="form-label">Select Workplan *</label>
+                <select
+                  id="workplan-select"
+                  value={workplanAssignmentForm.standardWorkplanId}
+                  onChange={(e) => setWorkplanAssignmentForm({...workplanAssignmentForm, standardWorkplanId: e.target.value})}
+                  className="form-select"
+                  required
+                >
+                  <option value="">-- Select a Workplan --</option>
+                  {availableWorkplans.map(workplan => (
+                    <option key={workplan.id} value={workplan.id}>
+                      {workplan.title || workplan.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="assignment-notes" className="form-label">Assignment Notes</label>
+                <textarea
+                  id="assignment-notes"
+                  value={workplanAssignmentForm.assignmentNotes}
+                  onChange={(e) => setWorkplanAssignmentForm({...workplanAssignmentForm, assignmentNotes: e.target.value})}
+                  className="form-textarea"
+                  rows="4"
+                  placeholder="Enter any additional notes or instructions for this workplan assignment (optional)"
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAssignWorkplanModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Assigning...' : 'Assign Workplan'}
                 </button>
               </div>
             </form>
